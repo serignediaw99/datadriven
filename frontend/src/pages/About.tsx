@@ -67,6 +67,9 @@ export default function About() {
             { page: 'Bracket',    desc: 'The single most-likely projected bracket path from R32 to the Final.' },
             { page: 'Awards',     desc: 'Golden boot and top assists race — current tally, projected total, and win probability.' },
             { page: 'Matches',    desc: 'Full fixture list with results and upcoming kick-off times.' },
+            { page: 'Path',       desc: 'Select any team to see their most likely opponents round by round. Enter hypothetical scores to run a scenario and see how their bracket path shifts.' },
+            { page: 'Scenario',   desc: 'Set scores for any upcoming group stage matches and re-run 20,000 simulations to see how the championship odds change across all 48 teams.' },
+            { page: 'About',      desc: 'This page.' },
           ].map(({ page, desc }, i, arr) => (
             <div key={page} style={{
               display: 'grid',
