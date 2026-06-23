@@ -43,7 +43,7 @@ function TeamRow({ t, rank }: { t: TeamKnockoutOdds; rank: number }) {
   return (
     <tr style={{
       borderBottom: '1px solid var(--border)',
-      background: rank === 5 ? 'var(--border)' : 'transparent',
+      background: 'transparent',
     }}>
       <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text-3)', width: 32, fontVariantNumeric: 'tabular-nums' }}>
         {rank + 1}
