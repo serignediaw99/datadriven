@@ -1,7 +1,6 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, Link } from 'react-router-dom'
 
 const links = [
-  { to: '/',         label: 'Dashboard' },
   { to: '/groups',   label: 'Groups' },
   { to: '/knockout', label: 'Knockout' },
   { to: '/awards',   label: 'Awards' },
@@ -32,8 +31,7 @@ export default function NavBar() {
         gap: 4,
         overflowX: 'auto',
       }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', marginRight: 20, flexShrink: 0 }}>
+        <Link to="/" style={{ textDecoration: 'none', marginRight: 20, flexShrink: 0 }}>
           <span style={{
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 800,
@@ -43,14 +41,12 @@ export default function NavBar() {
           }}>
             datadriven
           </span>
-        </div>
+        </Link>
 
-        {/* Nav links */}
         {links.map(l => (
           <NavLink
             key={l.to}
             to={l.to}
-            end={l.to === '/'}
             style={({ isActive }) => ({
               position: 'relative',
               color: isActive ? 'var(--accent)' : 'var(--text-2)',
