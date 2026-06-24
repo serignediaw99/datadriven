@@ -4,6 +4,19 @@ import { FlagImg } from '../lib/FlagImg'
 
 const COLS = ['1st', '2nd', '3rd', '4th'] as const
 
+// Heatmap cell: amber background scales with probability
+function heatCell(p: number): React.CSSProperties {
+  const alpha = Math.pow(p, 0.6) * 0.55   // sqrt-ish curve → more visual spread
+  return {
+    padding: '10px 6px',
+    textAlign: 'right',
+    fontSize: 12,
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: p >= 0.35 ? 700 : 400,
+    background: `rgba(181, 109, 60, ${alpha})`,
+    color: p >= 0.5 ? 'rgba(255,238,218,0.95)' : p >= 0.1 ? 'rgba(255,238,218,0.7)' : 'rgba(255,238,218,0.3)',
+  }
+}
 
 export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; thirdPlace?: ThirdPlaceOdds }) {
   const p3rdQual = thirdPlace?.p_qualify_as_3rd ?? 0
@@ -64,31 +77,21 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
 
             return (
               <Fragment key={t.team}>
-                <tr style={{
-                  borderBottom: i < 3 ? '1px solid var(--border)' : 'none',
-                  opacity: i === 3 ? 0.65 : 1,
-                }}>
+                <tr style={{ borderBottom: i < 3 ? '1px solid var(--border)' : 'none' }}>
                   <td style={{ padding: '10px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <FlagImg team={t.team} size={19} />
                       <span style={{
                         fontSize: 13,
                         fontWeight: i < 2 ? 600 : 400,
-                        color: 'var(--text-1)',
+                        color: i === 3 ? 'var(--text-3)' : 'var(--text-1)',
                       }}>
                         {t.team}
                       </span>
                     </div>
                   </td>
                   {probs.map((p, pi) => (
-                    <td key={pi} style={{
-                      padding: '10px 6px',
-                      textAlign: 'right',
-                      fontSize: 12,
-                      fontVariantNumeric: 'tabular-nums',
-                      color: p >= 0.5 ? 'var(--text-1)' : p >= 0.1 ? 'var(--text-2)' : 'var(--text-3)',
-                      fontWeight: p >= 0.5 ? 700 : 400,
-                    }}>
+                    <td key={pi} style={heatCell(p)}>
                       {(p * 100).toFixed(0)}%
                     </td>
                   ))}
