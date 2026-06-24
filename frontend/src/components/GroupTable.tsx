@@ -6,7 +6,7 @@ const COLS = ['1st', '2nd', '3rd', '4th'] as const
 
 // Heatmap cell: amber background scales with probability; text always readable
 function heatCell(p: number): React.CSSProperties {
-  const alpha = Math.pow(p, 0.6) * 0.55
+  const alpha = Math.max(0.08, Math.pow(p, 0.6) * 0.55)
   return {
     padding: '10px 6px',
     textAlign: 'right',
@@ -14,7 +14,7 @@ function heatCell(p: number): React.CSSProperties {
     fontVariantNumeric: 'tabular-nums',
     fontWeight: p >= 0.35 ? 700 : 400,
     background: `rgba(181, 109, 60, ${alpha})`,
-    color: 'var(--text-1)',
+    color: 'rgba(240, 220, 200, 0.88)',
   }
 }
 
