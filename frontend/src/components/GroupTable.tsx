@@ -60,7 +60,7 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
               <span className="label">Team</span>
             </th>
             <th style={{ padding: '8px 6px', textAlign: 'right', width: 36 }}>
-              <span className="label">Pts</span>
+              <span className="label">Proj. Pts</span>
             </th>
             {COLS.map(h => (
               <th key={h} style={{ padding: '8px 6px', textAlign: 'right', width: 40 }}>
