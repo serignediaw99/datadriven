@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { useLiveStream } from '../hooks/useLiveStream'
 import type { PlayerAwardEntry } from '../lib/types'
-import { flag } from '../lib/flags'
+import { FlagImg } from '../lib/FlagImg'
 
 function PodiumCard({ player, rank, stat }: { player: PlayerAwardEntry; rank: number; stat: string }) {
   const config = [
@@ -19,7 +19,7 @@ function PodiumCard({ player, rank, stat }: { player: PlayerAwardEntry; rank: nu
       textAlign: 'center',
     }}>
       <div style={{ fontSize: 28, marginBottom: 8 }}>{config.medal}</div>
-      <div style={{ fontSize: 20, marginBottom: 6 }}>{flag(player.team)}</div>
+      <div style={{ marginBottom: 6 }}><FlagImg team={player.team} size={24} /></div>
       <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-1)', marginBottom: 4 }}>{player.player}</div>
       <div style={{
         fontFamily: "'Space Grotesk', sans-serif",
@@ -58,7 +58,7 @@ function LeaderRow({ player, rank, stat, maxP }: { player: PlayerAwardEntry; ran
         {rank + 1}
       </span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>{flag(player.team)}</span>
+        <span style={{ flexShrink: 0 }}><FlagImg team={player.team} size={20} /></span>
         <div>
         <div style={{ fontWeight: 500, fontSize: 13, color: 'var(--text-1)' }}>{player.player}</div>
         <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>

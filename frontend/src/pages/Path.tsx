@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { flag } from '../lib/flags'
+import { FlagImg } from '../lib/FlagImg'
 import type { PathOpponent, PathResponse, ScenarioMatchOverride, MatchEntry } from '../lib/types'
 
 const ROUND_LABELS = ['R32', 'R16', 'QF', 'SF', 'Final'] as const
@@ -27,7 +28,7 @@ function OpponentBar({ opp, color }: { opp: PathOpponent; color: string }) {
   const pct = Math.round(opp.p * 100)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-      <span style={{ width: 22, fontSize: 15, flexShrink: 0 }}>{flag(opp.opponent)}</span>
+      <span style={{ width: 22, flexShrink: 0 }}><FlagImg team={opp.opponent} size={20} /></span>
       <span style={{ flex: 1, fontSize: 13, color: 'var(--text-1)', fontWeight: 500, minWidth: 0 }}>
         {opp.opponent}
       </span>
@@ -58,7 +59,7 @@ function OpponentDeltaRow({ opponent, baseline, scenario, color }: {
   const sign = delta >= 0 ? '+' : ''
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-      <span style={{ width: 22, fontSize: 15, flexShrink: 0 }}>{flag(opponent)}</span>
+      <span style={{ width: 22, flexShrink: 0 }}><FlagImg team={opponent} size={20} /></span>
       <span style={{ flex: 1, fontSize: 13, color: 'var(--text-1)', fontWeight: 500, minWidth: 0 }}>{opponent}</span>
       <span style={{ width: 32, fontSize: 12, color: 'var(--text-3)', fontVariantNumeric: 'tabular-nums', textAlign: 'right', flexShrink: 0 }}>
         {Math.round(baseline * 100)}%
@@ -192,7 +193,7 @@ function MatchScoreRow({ match, override, onChange }: {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'flex-end' }}>
         <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>{match.team1}</span>
-        <span style={{ fontSize: 16, lineHeight: 1 }}>{flag(match.team1)}</span>
+        <FlagImg team={match.team1} size={20} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         <input
@@ -216,7 +217,7 @@ function MatchScoreRow({ match, override, onChange }: {
         />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-        <span style={{ fontSize: 16, lineHeight: 1 }}>{flag(match.team2)}</span>
+        <FlagImg team={match.team2} size={20} />
         <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>{match.team2}</span>
       </div>
     </div>

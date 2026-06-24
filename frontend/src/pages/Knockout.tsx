@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import { flag } from '../lib/flags'
+import { FlagImg } from '../lib/FlagImg'
 import { useLiveStream } from '../hooks/useLiveStream'
 import type { TeamKnockoutOdds } from '../lib/types'
 
@@ -48,7 +48,9 @@ function TeamRow({ t, rank }: { t: TeamKnockoutOdds; rank: number }) {
       <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text-3)', width: 32, fontVariantNumeric: 'tabular-nums' }}>
         {rank + 1}
       </td>
-      <td style={{ padding: '10px 6px', fontSize: 18, width: 36 }}>{flag(t.team)}</td>
+      <td style={{ padding: '10px 6px', width: 36 }}>
+        <FlagImg team={t.team} size={22} />
+      </td>
       <td style={{ padding: '10px 8px', fontSize: 13, fontWeight: 500, color: 'var(--text-1)', minWidth: 140 }}>
         {t.team}
       </td>

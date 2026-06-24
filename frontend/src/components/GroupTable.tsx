@@ -1,5 +1,5 @@
 import type { GroupOdds, ThirdPlaceOdds } from '../lib/types'
-import { flag } from '../lib/flags'
+import { FlagImg } from '../lib/FlagImg'
 
 function StackedBar({ p1, p2, p3, p4 }: { p1: number; p2: number; p3: number; p4: number }) {
   return (
@@ -63,7 +63,7 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
               borderBottom: i < 3 ? '1px solid var(--border)' : 'none',
             }}
           >
-            <span style={{ fontSize: 16 }}>{flag(t.team)}</span>
+            <FlagImg team={t.team} size={20} />
             <div>
               <div style={{
                 fontSize: 13,

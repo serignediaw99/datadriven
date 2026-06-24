@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import { flag } from '../lib/flags'
+import { FlagImg } from '../lib/FlagImg'
 import { useLiveStream } from '../hooks/useLiveStream'
 import type { MatchEntry } from '../lib/types'
 
@@ -40,7 +40,7 @@ function MatchCard({ m }: { m: MatchEntry }) {
         {/* Teams row */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 7 }}>
-            <span style={{ fontSize: 20 }}>{flag(m.team1)}</span>
+            <FlagImg team={m.team1} size={24} />
             <span style={{
               fontSize: 13,
               fontWeight: isPlayed ? 600 : 500,
@@ -75,7 +75,7 @@ function MatchCard({ m }: { m: MatchEntry }) {
             }}>
               {m.team2}
             </span>
-            <span style={{ fontSize: 20 }}>{flag(m.team2)}</span>
+            <FlagImg team={m.team2} size={24} />
           </div>
         </div>
 

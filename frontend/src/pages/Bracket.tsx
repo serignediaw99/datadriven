@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import { flag } from '../lib/flags'
+import { FlagImg } from '../lib/FlagImg'
 import { useLiveStream } from '../hooks/useLiveStream'
 import type { BracketMatch, BracketResponse } from '../lib/types'
 
@@ -31,7 +31,7 @@ function TeamRow({ team, isWinner }: { team: string; isWinner: boolean }) {
       borderLeft: isWinner ? '2px solid var(--accent)' : '2px solid transparent',
       minWidth: 0,
     }}>
-      <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>{flag(team)}</span>
+      <FlagImg team={team} size={18} />
       <span style={{
         fontSize: 11, fontWeight: isWinner ? 700 : 400,
         color: isWinner ? 'var(--text-1)' : 'var(--text-2)',

@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
-import { flag } from '../lib/flags'
+import { FlagImg } from '../lib/FlagImg'
 import { useLiveStream } from '../hooks/useLiveStream'
 
 const ROUNDS = ['Winner','Final','SF','QF'] as const
@@ -16,7 +16,7 @@ function WinnerCard({ team, pct, rank }: { team: string; pct: number; rank: numb
       border: isFirst ? '1px solid rgba(181,109,60,0.20)' : undefined,
       transition: 'border-color .15s',
     }}>
-      <div style={{ fontSize: 28, marginBottom: 10 }}>{flag(team)}</div>
+      <div style={{ marginBottom: 10 }}><FlagImg team={team} size={32} /></div>
       <div style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500, marginBottom: 8 }}>{team}</div>
       <div style={{
         fontSize: 30,
@@ -43,7 +43,7 @@ function RoundRow({ team, probs }: { team: string; probs: Record<string,number> 
       padding: '9px 16px',
       borderBottom: '1px solid var(--border)',
     }}>
-      <span style={{ fontSize: 16 }}>{flag(team)}</span>
+      <FlagImg team={team} size={20} />
       <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>{team}</span>
       {ROUNDS.map(r => {
         const v = probs[r] ?? 0
@@ -200,7 +200,7 @@ export default function Dashboard() {
                     borderBottom: i < 3 ? '1px solid var(--border)' : 'none',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <span style={{ fontSize: 13 }}>{flag(t.team)}</span>
+                      <FlagImg team={t.team} size={16} />
                       <span style={{
                         fontSize: 12,
                         color: i < 2 ? 'var(--text-1)' : 'var(--text-2)',

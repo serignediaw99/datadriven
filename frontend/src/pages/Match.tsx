@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import { flag } from '../lib/flags'
+import { FlagImg } from '../lib/FlagImg'
 import ScorelineHeatmap from '../components/ScorelineHeatmap'
 
 function StatItem({ label, value, color }: { label: string; value: string; color?: string }) {
@@ -93,7 +93,7 @@ export default function Match() {
           <div className="label" style={{ marginBottom: 20 }}>Final Result</div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28 }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 44 }}>{flag(pred.team1)}</div>
+              <div style={{ marginBottom: 8 }}><FlagImg team={pred.team1} size={44} /></div>
               <div style={{ fontSize: 13, fontWeight: 500, marginTop: 8, color: 'var(--text-1)' }}>{pred.team1}</div>
             </div>
             <div style={{
@@ -105,7 +105,7 @@ export default function Match() {
               {pred.result}
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 44 }}>{flag(pred.team2)}</div>
+              <div style={{ marginBottom: 8 }}><FlagImg team={pred.team2} size={44} /></div>
               <div style={{ fontSize: 13, fontWeight: 500, marginTop: 8, color: 'var(--text-1)' }}>{pred.team2}</div>
             </div>
           </div>
@@ -129,7 +129,7 @@ export default function Match() {
         {/* Teams + xG */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
           <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: 52, marginBottom: 10 }}>{flag(pred.team1)}</div>
+            <div style={{ marginBottom: 10 }}><FlagImg team={pred.team1} size={52} /></div>
             <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-1)', marginBottom: 10 }}>{pred.team1}</div>
             <div style={{
               fontFamily: "'Space Grotesk', sans-serif",
@@ -144,7 +144,7 @@ export default function Match() {
           </div>
           <div style={{ color: 'var(--text-3)', fontWeight: 600, fontSize: 16 }}>vs</div>
           <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: 52, marginBottom: 10 }}>{flag(pred.team2)}</div>
+            <div style={{ marginBottom: 10 }}><FlagImg team={pred.team2} size={52} /></div>
             <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-1)', marginBottom: 10 }}>{pred.team2}</div>
             <div style={{
               fontFamily: "'Space Grotesk', sans-serif",
@@ -211,11 +211,11 @@ export default function Match() {
                 >
                   <div className="label" style={{ marginBottom: 6 }}>{m.date}</div>
                   <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <span>{flag(m.team1)}</span>
+                    <FlagImg team={m.team1} size={20} />
                     <span>{m.team1}</span>
                     <span style={{ color: 'var(--text-3)' }}>vs</span>
                     <span>{m.team2}</span>
-                    <span>{flag(m.team2)}</span>
+                    <FlagImg team={m.team2} size={20} />
                   </div>
                 </div>
               </Link>

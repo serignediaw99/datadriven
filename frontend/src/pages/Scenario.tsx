@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import { flag } from '../lib/flags'
+import { FlagImg } from '../lib/FlagImg'
 import type { ScenarioMatchOverride, ScenarioResponse, MatchEntry } from '../lib/types'
 
 type OverrideMap = Record<number, { score1: string; score2: string }>
@@ -45,7 +45,7 @@ function MatchRow({
       <span style={{ width: 80, fontSize: 11, color: 'var(--text-3)', fontVariantNumeric: 'tabular-nums' }}>
         {match.group ?? match.round}
       </span>
-      <span style={{ fontSize: 14, width: 28, textAlign: 'right' }}>{flag(match.team1)}</span>
+      <span style={{ width: 28, textAlign: 'right' }}><FlagImg team={match.team1} size={18} /></span>
       <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--text-1)', textAlign: 'right' }}>{match.team1}</span>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -71,7 +71,7 @@ function MatchRow({
       </div>
 
       <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>{match.team2}</span>
-      <span style={{ fontSize: 14, width: 28 }}>{flag(match.team2)}</span>
+      <span style={{ width: 28 }}><FlagImg team={match.team2} size={18} /></span>
 
       <div style={{ width: 72, textAlign: 'right' }}>
         {!actualScore ? (
@@ -113,7 +113,7 @@ function WinnerDelta({ team, baseline, scenario }: { team: string; baseline: num
   const sign = delta > 0 ? '+' : ''
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-      <span style={{ fontSize: 14, width: 24 }}>{flag(team)}</span>
+      <span style={{ width: 24 }}><FlagImg team={team} size={18} /></span>
       <span style={{ flex: 1, fontSize: 13, color: 'var(--text-1)' }}>{team}</span>
       <span style={{ fontSize: 12, color: 'var(--text-2)', width: 50, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
         {(baseline * 100).toFixed(1)}%
