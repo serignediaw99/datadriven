@@ -4,9 +4,9 @@ import { FlagImg } from '../lib/FlagImg'
 
 const COLS = ['1st', '2nd', '3rd', '4th'] as const
 
-// Heatmap cell: amber background scales with probability
+// Heatmap cell: amber background scales with probability; text always readable
 function heatCell(p: number): React.CSSProperties {
-  const alpha = Math.pow(p, 0.6) * 0.55   // sqrt-ish curve → more visual spread
+  const alpha = Math.pow(p, 0.6) * 0.55
   return {
     padding: '10px 6px',
     textAlign: 'right',
@@ -14,7 +14,7 @@ function heatCell(p: number): React.CSSProperties {
     fontVariantNumeric: 'tabular-nums',
     fontWeight: p >= 0.35 ? 700 : 400,
     background: `rgba(181, 109, 60, ${alpha})`,
-    color: p >= 0.5 ? 'rgba(255,238,218,0.95)' : p >= 0.1 ? 'rgba(255,238,218,0.7)' : 'rgba(255,238,218,0.3)',
+    color: 'var(--text-1)',
   }
 }
 
@@ -92,7 +92,7 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
                   </td>
                   {probs.map((p, pi) => (
                     <td key={pi} style={heatCell(p)}>
-                      {(p * 100).toFixed(0)}%
+                      {p === 0 ? '0%' : `${(p * 100).toFixed(0)}%`}
                     </td>
                   ))}
                   <td style={{
