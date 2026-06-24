@@ -4,10 +4,6 @@ import { FlagImg } from '../lib/FlagImg'
 
 const COLS = ['1st', '2nd', '3rd', '4th'] as const
 
-const ZONE_LABELS: Record<number, string> = {
-  2: 'top-8 contention',
-  3: 'eliminated',
-}
 
 export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; thirdPlace?: ThirdPlaceOdds }) {
   const p3rdQual = thirdPlace?.p_qualify_as_3rd ?? 0
@@ -65,29 +61,9 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
           {group.teams.map((t, i) => {
             const r32 = t.p_1st + t.p_2nd + t.p_3rd * p3rdQual
             const probs = [t.p_1st, t.p_2nd, t.p_3rd, t.p_4th]
-            const zoneLabel = ZONE_LABELS[i]
 
             return (
               <Fragment key={t.team}>
-                {zoneLabel && (
-                  <tr>
-                    <td colSpan={6} style={{ padding: '3px 0' }}>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        padding: '0 16px',
-                      }}>
-                        <div style={{ flex: 1, borderTop: '1px dashed var(--border)' }} />
-                        <span style={{
-                          fontSize: 9, fontWeight: 600, letterSpacing: '0.07em',
-                          color: 'var(--text-3)', textTransform: 'uppercase', whiteSpace: 'nowrap',
-                        }}>
-                          {zoneLabel}
-                        </span>
-                        <div style={{ flex: 1, borderTop: '1px dashed var(--border)' }} />
-                      </div>
-                    </td>
-                  </tr>
-                )}
                 <tr style={{
                   borderBottom: i < 3 ? '1px solid var(--border)' : 'none',
                   opacity: i === 3 ? 0.65 : 1,
