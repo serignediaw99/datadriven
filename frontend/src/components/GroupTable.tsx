@@ -59,6 +59,9 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
             <th style={{ padding: '8px 16px', textAlign: 'left' }}>
               <span className="label">Team</span>
             </th>
+            <th style={{ padding: '8px 6px', textAlign: 'right', width: 36 }}>
+              <span className="label">Pts</span>
+            </th>
             {COLS.map(h => (
               <th key={h} style={{ padding: '8px 6px', textAlign: 'right', width: 40 }}>
                 <span className="label">{h}</span>
@@ -88,6 +91,15 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
                         {t.team}
                       </span>
                     </div>
+                  </td>
+                  <td style={{
+                    padding: '10px 6px',
+                    textAlign: 'right',
+                    fontSize: 12,
+                    fontVariantNumeric: 'tabular-nums',
+                    color: 'var(--text-2)',
+                  }}>
+                    {t.avg_pts.toFixed(1)}
                   </td>
                   {probs.map((p, pi) => (
                     <td key={pi} style={heatCell(p)}>
