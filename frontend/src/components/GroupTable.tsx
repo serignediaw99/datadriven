@@ -59,8 +59,8 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
             <th style={{ padding: '8px 16px', textAlign: 'left' }}>
               <span className="label">Team</span>
             </th>
-            <th style={{ padding: '8px 10px 8px 6px', textAlign: 'right', width: 58, whiteSpace: 'nowrap' }}>
-              <span className="label">Proj. Pts</span>
+            <th style={{ padding: '8px 8px 8px 6px', textAlign: 'right', width: 44 }}>
+              <span className="label">xPts</span>
             </th>
             {COLS.map(h => (
               <th key={h} style={{ padding: '8px 6px', textAlign: 'right', width: 40 }}>
@@ -86,14 +86,14 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
                       <span style={{
                         fontSize: 13,
                         fontWeight: i < 2 ? 600 : 400,
-                        color: i === 3 ? 'var(--text-3)' : 'var(--text-1)',
+                        color: r32 < 0.01 ? 'var(--text-3)' : 'var(--text-1)',
                       }}>
                         {t.team}
                       </span>
                     </div>
                   </td>
                   <td style={{
-                    padding: '10px 10px 10px 6px',
+                    padding: '10px 8px 10px 6px',
                     textAlign: 'right',
                     fontSize: 12,
                     fontVariantNumeric: 'tabular-nums',
