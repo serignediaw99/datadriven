@@ -85,7 +85,7 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
                       <FlagImg team={t.team} size={19} />
                       <span style={{
                         fontSize: 13,
-                        fontWeight: i < 2 ? 600 : 400,
+                        fontWeight: 400,
                         color: r32 < 0.01 ? 'var(--text-3)' : 'var(--text-1)',
                       }}>
                         {t.team}
