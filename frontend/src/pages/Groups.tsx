@@ -32,7 +32,7 @@ export default function Groups() {
         </p>
       </div>
 
-      {/* 3rd-place note */}
+      {/* 3rd-place info banner */}
       <div style={{
         padding: '12px 16px',
         borderRadius: 10,
@@ -42,24 +42,27 @@ export default function Groups() {
         color: 'var(--text-2)',
         display: 'flex',
         gap: 10,
-        alignItems: 'center',
+        alignItems: 'flex-start',
       }}>
-        <span style={{ fontSize: 16 }}>📋</span>
+        <span style={{ fontSize: 16, flexShrink: 0 }}>📋</span>
         <span>
           The <strong style={{ color: 'var(--gold)', fontWeight: 600 }}>8 best 3rd-place teams</strong> across
-          all 12 groups also advance to the Round of 32. Qualification chance shown on each group card.
+          all 12 groups also advance to the Round of 32. Each card shows how likely that group's 3rd-place
+          team is to make the cut, along with the points typically needed.
+          <strong style={{ color: 'var(--text-1)', fontWeight: 600 }}> R32%</strong> on each team
+          already accounts for this conditional path.
         </span>
       </div>
 
       {/* Group grid */}
       {isLoading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(360px,1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(380px,1fr))', gap: 16 }}>
           {Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="shimmer" style={{ height: 220 }} />
+            <div key={i} className="shimmer" style={{ height: 320, borderRadius: 12 }} />
           ))}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(360px,1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(380px,1fr))', gap: 16 }}>
           {(groups?.groups ?? []).map(g => (
             <GroupTable
               key={g.group}
