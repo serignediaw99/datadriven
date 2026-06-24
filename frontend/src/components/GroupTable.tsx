@@ -1,86 +1,12 @@
-import type { GroupOdds, ThirdPlaceOdds, TeamGroupOdds } from '../lib/types'
+import { Fragment } from 'react'
+import type { GroupOdds, ThirdPlaceOdds } from '../lib/types'
 import { FlagImg } from '../lib/FlagImg'
 
-function R32Bar({ value }: { value: number }) {
-  return (
-    <div style={{
-      height: 4, borderRadius: 2, overflow: 'hidden',
-      background: 'var(--border)', width: '100%',
-    }}>
-      <div style={{
-        height: '100%', borderRadius: 2,
-        width: `${Math.round(value * 100)}%`,
-        background: 'var(--accent)',
-        transition: 'width .3s ease',
-      }} />
-    </div>
-  )
-}
+const COLS = ['1st', '2nd', '3rd', '4th'] as const
 
-function TeamRow({ t, p3rdQual, rank }: { t: TeamGroupOdds; p3rdQual: number; rank: number }) {
-  const r32 = t.p_1st + t.p_2nd + t.p_3rd * p3rdQual
-
-  return (
-    <div style={{
-      padding: '13px 16px',
-      borderBottom: '1px solid var(--border)',
-    }}>
-      {/* Name row + R32 % */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
-        <FlagImg team={t.team} size={20} />
-        <span style={{
-          flex: 1, fontWeight: rank < 2 ? 600 : 400,
-          fontSize: 13, color: 'var(--text-1)', minWidth: 0,
-        }}>
-          {t.team}
-        </span>
-        <span style={{
-          fontSize: 14, fontWeight: 700,
-          color: 'var(--accent)', fontVariantNumeric: 'tabular-nums',
-          flexShrink: 0,
-        }}>
-          {Math.round(r32 * 100)}%
-        </span>
-      </div>
-
-      {/* R32 qualification bar */}
-      <R32Bar value={r32} />
-
-      {/* Position stats */}
-      <div style={{ display: 'flex', alignItems: 'center', marginTop: 8, gap: 12 }}>
-        {[
-          { label: '1st', val: t.p_1st },
-          { label: '2nd', val: t.p_2nd },
-          { label: '3rd', val: t.p_3rd },
-          { label: '4th', val: t.p_4th },
-        ].map(({ label, val }) => (
-          <span key={label} style={{ fontSize: 11, color: 'var(--text-3)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-            {label} <span style={{ color: 'var(--text-2)', fontWeight: 600 }}>{(val * 100).toFixed(0)}%</span>
-          </span>
-        ))}
-        <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-3)', whiteSpace: 'nowrap' }}>
-          {t.avg_pts.toFixed(1)} pts · {t.avg_gd >= 0 ? '+' : ''}{t.avg_gd.toFixed(1)} GD
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function ZoneDivider({ label }: { label: string }) {
-  return (
-    <div style={{
-      padding: '4px 16px',
-      display: 'flex', alignItems: 'center', gap: 8,
-      borderTop: '1px dashed var(--border)',
-      borderBottom: '1px dashed var(--border)',
-    }}>
-      <div style={{ flex: 1, height: 1 }} />
-      <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', color: 'var(--text-3)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-        {label}
-      </span>
-      <div style={{ flex: 1, height: 1 }} />
-    </div>
-  )
+const ZONE_LABELS: Record<number, string> = {
+  2: 'top-8 contention',
+  3: 'eliminated',
 }
 
 export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; thirdPlace?: ThirdPlaceOdds }) {
@@ -93,9 +19,9 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
       borderRadius: 12,
       overflow: 'hidden',
     }}>
-      {/* Header */}
+      {/* Card header */}
       <div style={{
-        padding: '12px 16px',
+        padding: '11px 16px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         background: 'var(--surface-hi)',
         borderBottom: '1px solid var(--border-hi)',
@@ -107,35 +33,105 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
         }}>
           {group.group}
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11, color: 'var(--text-3)' }}>R32 = chance to qualify</span>
-        </div>
+        {thirdPlace && (
+          <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+            3rd qual:{' '}
+            <strong style={{ color: 'var(--text-2)', fontWeight: 600 }}>
+              {(p3rdQual * 100).toFixed(0)}%
+            </strong>
+            {thirdPlace.pts_needed_p50 != null && ` · ~${thirdPlace.pts_needed_p50} pts`}
+          </span>
+        )}
       </div>
 
-      {/* Auto-qualify zone (1st + 2nd) */}
-      {group.teams.slice(0, 2).map((t, i) => (
-        <TeamRow key={t.team} t={t} p3rdQual={p3rdQual} rank={i} />
-      ))}
+      {/* Table */}
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid var(--border-hi)' }}>
+            <th style={{ padding: '8px 16px', textAlign: 'left' }}>
+              <span className="label">Team</span>
+            </th>
+            {COLS.map(h => (
+              <th key={h} style={{ padding: '8px 6px', textAlign: 'right', width: 40 }}>
+                <span className="label">{h}</span>
+              </th>
+            ))}
+            <th style={{ padding: '8px 16px 8px 6px', textAlign: 'right', width: 46 }}>
+              <span className="label" style={{ color: 'var(--accent)' }}>R32</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {group.teams.map((t, i) => {
+            const r32 = t.p_1st + t.p_2nd + t.p_3rd * p3rdQual
+            const probs = [t.p_1st, t.p_2nd, t.p_3rd, t.p_4th]
+            const zoneLabel = ZONE_LABELS[i]
 
-      {/* 3rd-place team */}
-      {group.teams.length > 2 && (
-        <>
-          <ZoneDivider label={
-            thirdPlace
-              ? `3rd place · top-8 qual ${(p3rdQual * 100).toFixed(0)}%${thirdPlace.pts_needed_p50 != null ? ` · ~${thirdPlace.pts_needed_p50} pts needed` : ''}`
-              : '3rd place · top-8 contention'
-          } />
-          <TeamRow t={group.teams[2]} p3rdQual={p3rdQual} rank={2} />
-        </>
-      )}
-
-      {/* 4th-place team */}
-      {group.teams.length > 3 && (
-        <>
-          <ZoneDivider label="4th place · eliminated" />
-          <TeamRow t={group.teams[3]} p3rdQual={p3rdQual} rank={3} />
-        </>
-      )}
+            return (
+              <Fragment key={t.team}>
+                {zoneLabel && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: '3px 0' }}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '0 16px',
+                      }}>
+                        <div style={{ flex: 1, borderTop: '1px dashed var(--border)' }} />
+                        <span style={{
+                          fontSize: 9, fontWeight: 600, letterSpacing: '0.07em',
+                          color: 'var(--text-3)', textTransform: 'uppercase', whiteSpace: 'nowrap',
+                        }}>
+                          {zoneLabel}
+                        </span>
+                        <div style={{ flex: 1, borderTop: '1px dashed var(--border)' }} />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                <tr style={{
+                  borderBottom: i < 3 ? '1px solid var(--border)' : 'none',
+                  opacity: i === 3 ? 0.65 : 1,
+                }}>
+                  <td style={{ padding: '10px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <FlagImg team={t.team} size={19} />
+                      <span style={{
+                        fontSize: 13,
+                        fontWeight: i < 2 ? 600 : 400,
+                        color: 'var(--text-1)',
+                      }}>
+                        {t.team}
+                      </span>
+                    </div>
+                  </td>
+                  {probs.map((p, pi) => (
+                    <td key={pi} style={{
+                      padding: '10px 6px',
+                      textAlign: 'right',
+                      fontSize: 12,
+                      fontVariantNumeric: 'tabular-nums',
+                      color: p >= 0.5 ? 'var(--text-1)' : p >= 0.1 ? 'var(--text-2)' : 'var(--text-3)',
+                      fontWeight: p >= 0.5 ? 700 : 400,
+                    }}>
+                      {(p * 100).toFixed(0)}%
+                    </td>
+                  ))}
+                  <td style={{
+                    padding: '10px 16px 10px 6px',
+                    textAlign: 'right',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    fontVariantNumeric: 'tabular-nums',
+                    color: 'var(--accent)',
+                  }}>
+                    {Math.round(r32 * 100)}%
+                  </td>
+                </tr>
+              </Fragment>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
