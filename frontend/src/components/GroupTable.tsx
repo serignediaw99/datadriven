@@ -4,15 +4,8 @@ import { FlagImg } from '../lib/FlagImg'
 
 const COLS = ['1st', '2nd', '3rd', '4th'] as const
 
-// Heatmap: amber bg scales with p; text is inverse — darker brown on lighter cells.
-// Smooth interpolation: t=0 (p=0, near-cream) → text #1c1107 (near-black brown)
-//                       t=1 (p=1, amber)     → text #a8896a (light warm brown)
 function heatCell(p: number): React.CSSProperties {
   const alpha = Math.max(0.08, Math.pow(p, 0.6) * 0.55)
-  const t = Math.min(1, (alpha - 0.08) / 0.47)
-  const tr = Math.round(28  + (168 - 28)  * t)
-  const tg = Math.round(17  + (137 - 17)  * t)
-  const tb = Math.round(7   + (106 - 7)   * t)
   return {
     padding: '10px 6px',
     textAlign: 'right',
@@ -20,7 +13,7 @@ function heatCell(p: number): React.CSSProperties {
     fontVariantNumeric: 'tabular-nums',
     fontWeight: p >= 0.35 ? 700 : 400,
     background: `rgba(181, 109, 60, ${alpha})`,
-    color: `rgb(${tr}, ${tg}, ${tb})`,
+    color: 'var(--text-2)',
   }
 }
 
