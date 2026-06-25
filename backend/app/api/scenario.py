@@ -51,7 +51,12 @@ async def explore_scenario(request: ScenarioRequest):
         else:
             patched.append(m)
 
-    result = run_simulation(patched, state.team_params, [], n=n)
+    # Carry the bookmaker h2h market calibration into the what-if sim (matches the
+    # user explicitly override become fixed scores and ignore their override).
+    result = run_simulation(
+        patched, state.team_params, [], n=n,
+        match_lambda_overrides=state.match_overrides or None,
+    )
 
     path = None
     if request.focus_team and result.reach is not None and result.ko_opp is not None:
