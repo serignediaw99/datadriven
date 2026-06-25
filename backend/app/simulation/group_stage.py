@@ -76,22 +76,32 @@ def compute_group_standings(
             h2h[:, g_idx, t1, t2] += 3.0 * (g1 > g2) + (g1 == g2)
             h2h[:, g_idx, t2, t1] += 3.0 * (g2 > g1) + (g1 == g2)
 
-    # For each team i, sum the net H2H edge only against opponents tied on pts.
-    # tied_mask[n,g,i,j] = 1 if pts[i]==pts[j] in that sim (excludes self).
+    # Head-to-head points apply ONLY among teams level on overall pts, GD AND GF
+    # (FIFA criteria a-c are exhausted first). Build the net H2H edge within that
+    # fully-tied subset; it is zero for any pair separated by an earlier criterion.
     pts_f = pts.astype(np.float64)
-    tied = (pts_f[:, :, :, np.newaxis] == pts_f[:, :, np.newaxis, :])   # (N,G,4,4)
+    gd_f  = gd.astype(np.float64)
+    gf_f  = gf.astype(np.float64)
+    tied = (
+        (pts_f[:, :, :, np.newaxis] == pts_f[:, :, np.newaxis, :])
+        & (gd_f[:, :, :, np.newaxis]  == gd_f[:, :, np.newaxis, :])
+        & (gf_f[:, :, :, np.newaxis]  == gf_f[:, :, np.newaxis, :])
+    )  # (N,G,4,4)
     np.einsum('ngii->ngi', tied.view(np.uint8)).fill(0)  # zero the diagonal
     h2h_edge  = h2h - h2h.transpose(0, 1, 3, 2)           # net pts: +3 win, 0 draw, -3 loss
     h2h_bonus = (h2h_edge * tied).sum(axis=3)              # (N, G, 4)
 
-    # Combined ranking key (descending).  Weight hierarchy ensures FIFA order:
-    #   overall pts > H2H pts (among tied) > overall GD > overall GF > lots
+    # Combined ranking key (descending). FIFA World Cup order:
+    #   overall pts > overall GD > overall GF > head-to-head pts > drawing of lots.
+    # NOTE: head-to-head is the World Cup's 4th criterion — AFTER overall GD/GF.
+    # (The UEFA European Championship applies it right after points; the World Cup
+    # does not. This was previously implemented in the UEFA order, in error.)
     noise = np.random.rand(N, G, 4) * 1e-4
     combined = (
         pts_f * 1e9
-        + h2h_bonus * 1e6          # only non-zero when pts are tied
-        + gd.astype(np.float64) * 1e3
-        + gf.astype(np.float64)
+        + gd_f * 1e6
+        + gf_f * 1e3
+        + h2h_bonus * 1e0
         + noise
     )
     ranks = np.argsort(-combined, axis=2)  # (N, G, 4) — local team indices

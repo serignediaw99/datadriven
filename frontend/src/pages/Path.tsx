@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import { flag } from '../lib/flags'
 import { FlagImg } from '../lib/FlagImg'
+import { TeamSelect } from '../components/TeamSelect'
 import type { PathOpponent, PathResponse, ScenarioMatchOverride, MatchEntry } from '../lib/types'
 
 const ROUND_LABELS = ['R32', 'R16', 'QF', 'SF', 'Final'] as const
@@ -327,21 +327,12 @@ export default function Path() {
         <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
           Select Team
         </label>
-        <select
+        <TeamSelect
+          teams={allTeams}
           value={selectedTeam}
-          onChange={e => { setSelectedTeam(e.target.value); handleReset() }}
-          style={{
-            width: '100%', padding: '10px 12px',
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 8, fontSize: 14, color: 'var(--text-1)',
-            fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
-          }}
-        >
-          <option value="">— choose a team —</option>
-          {allTeams.map(t => (
-            <option key={t} value={t}>{flag(t)} {t}</option>
-          ))}
-        </select>
+          onChange={t => { setSelectedTeam(t); handleReset() }}
+          placeholder="— choose a team —"
+        />
       </div>
 
       {!selectedTeam && (

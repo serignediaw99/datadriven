@@ -14,6 +14,7 @@ import math
 from dataclasses import dataclass
 
 BASE_RATE = 1.15  # avg goals per team per WC match (neutral venue)
+HOME_ADV = 0.0    # host advantage (log scale); set from the fitted model's gamma
 ATTACK_SCALE = 0.40   # how strongly Elo drives attack
 DEFENSE_SCALE = 0.30  # how strongly Elo drives defense
 ELO_UNIT = 200.0      # Elo points per unit
@@ -43,6 +44,33 @@ def build_team_params(elo_ratings: dict[str, float]) -> dict[str, TeamParams]:
             alpha=ATTACK_SCALE * delta,
             beta=DEFENSE_SCALE * delta,
         )
+    return params
+
+
+def build_team_params_from_model(
+    model, team_names: list[str] | None = None
+) -> dict[str, TeamParams]:
+    """
+    Build TeamParams from a fitted Dixon-Coles model (app.models.fit_dixon_coles).
+
+    Also updates the module-level BASE_RATE and HOME_ADV so the simulation engine
+    (which reads them via the ratings module) uses the fitted neutral base rate
+    and host advantage. Teams absent from the fit are skipped — the caller can
+    fall back to the Elo heuristic for those.
+    """
+    global BASE_RATE, HOME_ADV
+    BASE_RATE = model.base_rate()
+    HOME_ADV = float(model.gamma)
+    names = team_names if team_names is not None else list(model.teams)
+    params: dict[str, TeamParams] = {}
+    for name in names:
+        if name in model.attack:
+            params[name] = TeamParams(
+                name=name,
+                elo=float(model.elo_equiv.get(name, 1900.0)),
+                alpha=float(model.attack[name]),
+                beta=float(model.defense[name]),
+            )
     return params
 
 

@@ -15,7 +15,9 @@ from typing import Optional
 import numpy as np
 
 from app.data.openfootball import WCMatch
-from app.models.ratings import TeamParams, BASE_RATE
+from app.data.metadata import host_playing_at_home, VENUE_COUNTRY, HOSTS_2026
+from app.models import ratings
+from app.models.ratings import TeamParams
 from app.simulation.group_stage import GroupMeta, compute_group_standings, GROUP_MATCHUPS
 from app.simulation.third_place import select_third_place_qualifiers
 from app.simulation.knockout import simulate_knockout, KO_MATCH_TO_BRACKET
@@ -56,7 +58,11 @@ def run(
     team_params: dict[str, TeamParams],
     players: list[PlayerEntry],
     n: int = 50_000,
+    match_lambda_overrides: Optional[dict[int, tuple[float, float]]] = None,
 ) -> SimulationResult:
+    # match_lambda_overrides: {match.num: (lambda_team1, lambda_team2)} — bookmaker
+    # h2h-derived goal rates that replace the model's for specific upcoming group
+    # fixtures (in data orientation, i.e. for m.team1 / m.team2).
     t0 = time.perf_counter()
 
     # --- Build global team index ---
@@ -146,13 +152,22 @@ def run(
             # canonical t1 = data team2 when flipped
             t1_name = m.team2 if flipped else m.team1
             t2_name = m.team1 if flipped else m.team2
-            p1 = team_params.get(t1_name)
-            p2 = team_params.get(t2_name)
-            if p1 and p2:
-                lam1 = BASE_RATE * math.exp(p1.alpha - p2.beta)
-                lam2 = BASE_RATE * math.exp(p2.alpha - p1.beta)
+            override = match_lambda_overrides.get(m.num) if match_lambda_overrides else None
+            if override is not None:
+                # Bookmaker h2h-derived rates (stored for m.team1, m.team2).
+                oa, ob = override
+                lam1, lam2 = (ob, oa) if flipped else (oa, ob)
             else:
-                lam1 = lam2 = BASE_RATE
+                p1 = team_params.get(t1_name)
+                p2 = team_params.get(t2_name)
+                if p1 and p2:
+                    # Host advantage: a 2026 host playing in its own country gets +gamma.
+                    h1 = ratings.HOME_ADV if host_playing_at_home(t1_name, m.ground) else 0.0
+                    h2 = ratings.HOME_ADV if host_playing_at_home(t2_name, m.ground) else 0.0
+                    lam1 = ratings.BASE_RATE * math.exp(p1.alpha - p2.beta + h1)
+                    lam2 = ratings.BASE_RATE * math.exp(p2.alpha - p1.beta + h2)
+                else:
+                    lam1 = lam2 = ratings.BASE_RATE
             unplayed_indices.append(fi)
             lam1_list.append(lam1)
             lam2_list.append(lam2)
@@ -212,9 +227,24 @@ def run(
         if ti >= 0:
             ko_params[ti] = (params.alpha, params.beta)
 
+    # Host-advantage venues per KO bracket position: a host playing a KO match
+    # staged in its own country gets +HOME_ADV (applied to that team only).
+    ko_host: dict[str, dict[int, int]] = {}
+    for m in matches:
+        if m.is_knockout and m.num in KO_MATCH_TO_BRACKET:
+            country = VENUE_COUNTRY.get(m.ground)
+            if country in HOSTS_2026:
+                host_idx = team_to_idx.get(country, -1)
+                if host_idx >= 0:
+                    round_name, bracket_pos = KO_MATCH_TO_BRACKET[m.num]
+                    ko_host.setdefault(round_name, {})[bracket_pos] = host_idx
+
     reach, ko_goals, ko_opp = simulate_knockout(
         ranks, global_team_ids, third_qualifiers, ko_params, team_to_idx,
+        base_rate=ratings.BASE_RATE,
         fixed_ko=fixed_ko,
+        home_adv=ratings.HOME_ADV,
+        ko_host=ko_host,
     )
 
     # --- Player simulation ---

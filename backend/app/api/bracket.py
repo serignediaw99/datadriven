@@ -10,7 +10,9 @@ import math
 from fastapi import APIRouter, HTTPException
 from app.state import state
 from app.simulation.knockout import R32_STRUCTURE, R16_BRACKET, QF_BRACKET, SF_BRACKET
-from app.simulation.third_place import THIRD_PLACE_SLOTS, _SLOT_ORDER
+from app.simulation.third_place import (
+    THIRD_PLACE_SLOTS, _SLOT_ORDER, _THIRD_PLACE_ASSIGNMENT, _GROUP_LETTERS,
+)
 
 router = APIRouter()
 
@@ -58,28 +60,31 @@ def _build_group_slots(gmap: dict) -> tuple[dict, dict]:
 
 def _assign_third_place(tpmap: dict, gmap: dict) -> dict[int, str]:
     """
-    Greedy group→slot assignment for the 8 3rd-place R32 slots.
-    Rank groups by P(3rd qualifies), then assign each to the first eligible
-    unoccupied slot in _SLOT_ORDER. One group per slot, one slot per group.
+    Assign the 8 best 3rd-place groups to the R32 third-place slots, mirroring the
+    simulation (third_place.select_third_place_qualifiers) so the projected bracket
+    matches the simulated R32 matchups shown on the Path/odds pages.
+
+    Two things must match the sim, or the bracket diverges from the odds:
+      1. Restrict to the 8 groups most likely to finish as a qualifying 3rd-place
+         team. A group outside that top 8 must NOT appear in the bracket (otherwise
+         a team that won't even qualify, e.g. a 4th-likely 3rd-placer, gets slotted).
+      2. Fill slots by iterating eligible qualifying groups in LETTER order (A-L) —
+         the simulation iterates them A-L, not by P(qualify).
     """
-    group_rank = sorted(
-        [(-tpmap.get(f"Group {g}", {}).get("p_qualify_as_3rd", 0.0), g)
-         for g in "ABCDEFGHIJKL"]
-    )
-    assigned: set[str] = set()
+    letters = "ABCDEFGHIJKL"
+    p_qual = {L: tpmap.get(f"Group {L}", {}).get("p_qualify_as_3rd", 0.0) for L in letters}
+    top8 = sorted(letters, key=lambda L: -p_qual[L])[:8]
+    combo = frozenset(letters.index(L) for L in top8)
+
     slot_to_team: dict[int, str] = {}
-    for match_num in _SLOT_ORDER:
-        eligible = THIRD_PLACE_SLOTS[match_num]
-        slot_i   = _MATCH_TO_SLOT_IDX[match_num]
-        for _, letter in group_rank:
-            if letter in assigned or letter not in eligible:
-                continue
-            teams = gmap.get(f"Group {letter}", [])
-            if teams:
-                best = max(teams, key=lambda t: t["p_3rd"])
-                slot_to_team[slot_i] = best["team"]
-                assigned.add(letter)
-            break
+    assignment = _THIRD_PLACE_ASSIGNMENT.get(combo)  # {slot_match_num: group_idx}
+    if assignment is None:
+        return slot_to_team
+    for match_num, gi in assignment.items():
+        teams = gmap.get(f"Group {_GROUP_LETTERS[gi]}", [])
+        if teams:
+            best = max(teams, key=lambda t: t["p_3rd"])
+            slot_to_team[_MATCH_TO_SLOT_IDX[match_num]] = best["team"]
     return slot_to_team
 
 
