@@ -52,6 +52,10 @@ class TournamentState:
         self.elo_ratings: dict[str, float] = dict(FALLBACK_ELO)
         self.player_stats: list[PlayerStat] = []
         self.team_params: dict[str, TeamParams] = {}
+        # Bookmaker h2h-derived goal-rate overrides {match.num: (lam_t1, lam_t2)} for
+        # priced upcoming fixtures. Reused by the scenario endpoint so what-if sims
+        # keep the same market calibration as the main one.
+        self.match_overrides: dict[int, tuple[float, float]] = {}
         self.fitted_model: Optional[FittedModel] = None
         self.players: list[PlayerEntry] = []
         self.result: Optional[SimulationResult] = None
@@ -265,6 +269,7 @@ class TournamentState:
 
         # 2) Per-match h2h goal-rate overrides (use the rating-blended params as base)
         overrides = self._build_h2h_overrides(self.matches, params, h2h) if h2h else {}
+        self.match_overrides = overrides  # reused by the scenario endpoint
 
         if params is self.team_params and not overrides:
             return  # nothing to apply
