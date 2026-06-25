@@ -10,4 +10,12 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
+      # Monte Carlo sims per run. 15000 keeps peak RAM ~400MB on the 512MB tier;
+      # raise it (e.g. 50000) only on a larger instance.
+      - key: N_SIMS
+        value: "15000"
+      # Bookmaker-odds blend (Phase 2). Value is set in the Render dashboard, not
+      # committed. Without it the app runs the pure model.
+      - key: ODDS_API_KEY
+        sync: false
     healthCheckPath: /api/health

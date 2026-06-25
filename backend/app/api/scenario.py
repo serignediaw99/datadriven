@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.data.openfootball import WCMatch
-from app.state import state
+from app.state import state, N_SIMS
 from app.simulation.engine import run as run_simulation
 from app.simulation import aggregator
 
@@ -33,7 +33,9 @@ async def explore_scenario(request: ScenarioRequest):
     if state.result is None:
         raise HTTPException(503, "Simulation not ready")
 
-    n = max(1_000, min(request.n_sims, 50_000))
+    # Cap at the configured sim count so a scenario request can't exceed the main
+    # sim's memory footprint (matters on small instances).
+    n = max(1_000, min(request.n_sims, N_SIMS))
     override_map = {o.match_num: (o.score1, o.score2) for o in request.overrides}
 
     patched: list[WCMatch] = []

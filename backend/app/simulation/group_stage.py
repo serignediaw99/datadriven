@@ -67,29 +67,30 @@ def compute_group_standings(
     # ── Pairwise H2H pts matrix ────────────────────────────────────────────────
     # h2h[n, g, i, j] = pts team i earned in their direct match against team j.
     # Used as the tiebreaker when two or more teams share the same overall pts.
-    h2h = np.zeros((N, G, 4, 4), dtype=np.float64)
+    # int16 keeps these (N,G,4,4) arrays small (h2h points are 0/1/3); float64 here
+    # is the single biggest allocation in the engine at high sim counts.
+    h2h = np.zeros((N, G, 4, 4), dtype=np.int16)
     for g_idx, grp in enumerate(groups):
         for m_local, (t1, t2) in enumerate(GROUP_MATCHUPS):
             mi = grp.match_indices[m_local]
-            g1 = goals1[:, mi].astype(np.float64)
-            g2 = goals2[:, mi].astype(np.float64)
-            h2h[:, g_idx, t1, t2] += 3.0 * (g1 > g2) + (g1 == g2)
-            h2h[:, g_idx, t2, t1] += 3.0 * (g2 > g1) + (g1 == g2)
+            g1 = goals1[:, mi]
+            g2 = goals2[:, mi]
+            h2h[:, g_idx, t1, t2] += (3 * (g1 > g2) + (g1 == g2)).astype(np.int16)
+            h2h[:, g_idx, t2, t1] += (3 * (g2 > g1) + (g1 == g2)).astype(np.int16)
 
     # Head-to-head points apply ONLY among teams level on overall pts, GD AND GF
-    # (FIFA criteria a-c are exhausted first). Build the net H2H edge within that
-    # fully-tied subset; it is zero for any pair separated by an earlier criterion.
-    pts_f = pts.astype(np.float64)
-    gd_f  = gd.astype(np.float64)
-    gf_f  = gf.astype(np.float64)
+    # (FIFA criteria a-c are exhausted first). Compare the int arrays directly (no
+    # float64 copies) to build the net H2H edge within that fully-tied subset; it is
+    # zero for any pair separated by an earlier criterion.
     tied = (
-        (pts_f[:, :, :, np.newaxis] == pts_f[:, :, np.newaxis, :])
-        & (gd_f[:, :, :, np.newaxis]  == gd_f[:, :, np.newaxis, :])
-        & (gf_f[:, :, :, np.newaxis]  == gf_f[:, :, np.newaxis, :])
-    )  # (N,G,4,4)
+        (pts[:, :, :, np.newaxis] == pts[:, :, np.newaxis, :])
+        & (gd[:, :, :, np.newaxis]  == gd[:, :, np.newaxis, :])
+        & (gf[:, :, :, np.newaxis]  == gf[:, :, np.newaxis, :])
+    )  # (N,G,4,4) bool
     np.einsum('ngii->ngi', tied.view(np.uint8)).fill(0)  # zero the diagonal
     h2h_edge  = h2h - h2h.transpose(0, 1, 3, 2)           # net pts: +3 win, 0 draw, -3 loss
     h2h_bonus = (h2h_edge * tied).sum(axis=3)              # (N, G, 4)
+    pts_f = pts.astype(np.float64)
 
     # Combined ranking key (descending). FIFA World Cup order:
     #   overall pts > overall GD > overall GF > head-to-head pts > drawing of lots.
@@ -99,8 +100,8 @@ def compute_group_standings(
     noise = np.random.rand(N, G, 4) * 1e-4
     combined = (
         pts_f * 1e9
-        + gd_f * 1e6
-        + gf_f * 1e3
+        + gd * 1e6
+        + gf * 1e3
         + h2h_bonus * 1e0
         + noise
     )
