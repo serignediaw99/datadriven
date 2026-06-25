@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import unicodedata
 import logging
+import os
 from typing import Optional
 
 import math
@@ -35,7 +36,9 @@ from app.simulation.players import PlayerEntry, build_player_entries
 
 log = logging.getLogger(__name__)
 
-N_SIMS = 50_000
+# Monte Carlo sims per run. Memory scales ~linearly with this; lower it on small
+# instances (e.g. N_SIMS=12000 on Render's 512MB tier). Default 50k for local/large.
+N_SIMS = int(os.environ.get("N_SIMS", "50000"))
 MODEL_PATH = "fitted_ratings.json"
 # Weight on the model when blending toward bookmaker outright odds (Phase 2).
 # 1.0 = pure model, 0.0 = pure market strength. Opt-in via the ODDS_API_KEY env var.
@@ -205,6 +208,7 @@ class TournamentState:
             df = await fetch_results(session)
             loop = asyncio.get_event_loop()
             model = await loop.run_in_executor(None, fit_model, df)
+            del df  # free the ~50k-row DataFrame before the re-sim below
         except Exception as e:  # network / parse / fit failure
             log.warning("Ratings refit failed: %s", e)
             return False
