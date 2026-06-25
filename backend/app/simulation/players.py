@@ -52,8 +52,18 @@ def build_player_entries(
                 team_global_idx=team_name_to_idx.get(team, -1),
             )
         )
-    entries.sort(key=lambda e: (-e.current_goals, -e.current_assists))
-    return entries[:top_n]
+    # Keep the leading scorers AND the leading assist providers — taking the top
+    # purely by goals would drop assist-only players (0 goals) from the assists
+    # ladder entirely. Union the two leaderboards, de-duplicated.
+    by_goals   = sorted(entries, key=lambda e: (-e.current_goals, -e.current_assists))
+    by_assists = sorted(entries, key=lambda e: (-e.current_assists, -e.current_goals))
+    selected: list[PlayerEntry] = []
+    seen: set[str] = set()
+    for e in by_goals[:top_n] + by_assists[:top_n]:
+        if e.name not in seen:
+            seen.add(e.name)
+            selected.append(e)
+    return selected
 
 
 def simulate_player_goals(

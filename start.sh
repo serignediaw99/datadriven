@@ -2,7 +2,21 @@
 export PATH="$HOME/.local/bin:$PATH"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
+# Load local secrets (e.g. ODDS_API_KEY for the Phase 2 odds blend) from a
+# gitignored backend/.env if present. Vars are exported so the backend inherits them.
+if [ -f "$ROOT/backend/.env" ]; then
+  set -a
+  . "$ROOT/backend/.env"
+  set +a
+fi
+
 echo "⚽ WC 2026 Simulator"
+echo ""
+if [ -n "$ODDS_API_KEY" ]; then
+  echo "Odds blend: ENABLED (ODDS_API_KEY set)"
+else
+  echo "Odds blend: disabled (set ODDS_API_KEY in backend/.env to enable)"
+fi
 echo ""
 echo "Starting backend on :8000…"
 cd "$ROOT/backend" && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 &

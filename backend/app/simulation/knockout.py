@@ -12,14 +12,14 @@ import numpy as np
 # R32 bracket slot descriptors. Source: openfootball worldcup.json.
 R32_STRUCTURE: list[tuple[str, str]] = [
     ("2:A", "2:B"),        # match 73
-    ("team:Germany", "3:0"), # match 74
+    ("1:E", "3:0"),        # match 74  (1:E = Germany if they win Group E)
     ("1:F", "2:C"),        # match 75
     ("1:C", "2:F"),        # match 76
     ("1:I", "3:1"),        # match 77
     ("2:E", "2:I"),        # match 78
-    ("team:Mexico", "3:2"), # match 79
+    ("1:A", "3:2"),        # match 79  (1:A = Mexico if they win Group A)
     ("1:L", "3:3"),        # match 80
-    ("team:USA", "3:4"),   # match 81
+    ("1:D", "3:4"),        # match 81  (1:D = USA if they win Group D)
     ("1:G", "3:5"),        # match 82
     ("2:K", "2:L"),        # match 83
     ("1:H", "2:J"),        # match 84
@@ -93,6 +93,8 @@ def simulate_knockout(
     team_name_to_idx: dict[str, int],
     base_rate: float = 1.15,
     fixed_ko: dict[str, dict[int, int]] | None = None,
+    home_adv: float = 0.0,
+    ko_host: dict[str, dict[int, int]] | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Run R32->Final for all N sims.
@@ -113,6 +115,8 @@ def simulate_knockout(
 
     if fixed_ko is None:
         fixed_ko = {}
+    if ko_host is None:
+        ko_host = {}
 
     # Pre-build vectorized alpha/beta arrays indexed by team global idx
     all_alpha = np.zeros(T, dtype=np.float64)
@@ -131,6 +135,7 @@ def simulate_knockout(
         M = len(bracket)
         winners = np.zeros((N, M), dtype=np.int32)
         fixed_round = fixed_ko.get(round_name, {})
+        host_round = ko_host.get(round_name, {})
 
         for i, (a, b) in enumerate(bracket):
             t1 = participants[:, a]
@@ -145,9 +150,18 @@ def simulate_knockout(
                 winners[:, i] = fixed_round[i]
                 continue
 
+            # Host advantage: if this venue is in a host country, the host team
+            # (when present) gets +home_adv on its goal rate.
+            host_idx = host_round.get(i, -1)
+            if host_idx >= 0 and home_adv:
+                h1 = np.where(t1 == host_idx, home_adv, 0.0)
+                h2 = np.where(t2 == host_idx, home_adv, 0.0)
+            else:
+                h1 = h2 = 0.0
+
             # Vectorized lambda via fancy indexing
-            lam1 = base_rate * np.exp(all_alpha[t1] - all_beta[t2])
-            lam2 = base_rate * np.exp(all_alpha[t2] - all_beta[t1])
+            lam1 = base_rate * np.exp(all_alpha[t1] - all_beta[t2] + h1)
+            lam2 = base_rate * np.exp(all_alpha[t2] - all_beta[t1] + h2)
             g1 = np.random.poisson(lam1).astype(np.int32)
             g2 = np.random.poisson(lam2).astype(np.int32)
             wins_t1 = (g1 > g2) | ((g1 == g2) & (np.random.rand(N) < 0.5))

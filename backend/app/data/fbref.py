@@ -23,11 +23,24 @@ _G_RE = re.compile(r'G:\s*(\d+)')
 _A_RE = re.compile(r'A:\s*(\d+)')
 _M_RE = re.compile(r'M:\s*(\d+)')
 
+# ESPN team names that differ from the simulator's canonical names.
+_ESPN_TEAM_TO_CANONICAL = {
+    "United States": "USA",
+    "Congo DR": "DR Congo",
+    "Czechia": "Czech Republic",
+    "Bosnia-Herzegovina": "Bosnia & Herzegovina",
+}
+
+
+def _espn_team(athlete: dict) -> str:
+    name = (athlete.get("team") or {}).get("name", "").strip()
+    return _ESPN_TEAM_TO_CANONICAL.get(name, name)
+
 
 @dataclass
 class PlayerStat:
     name: str
-    team: str          # empty — derived later from openfootball match data
+    team: str          # canonical national-team name from ESPN (athlete.team.name)
     goals: int
     assists: int
     matches_played: int
@@ -61,9 +74,11 @@ def _parse_espn(data: dict) -> list[PlayerStat]:
 
     for category in data.get("stats", []):
         for entry in category.get("leaders", []):
-            name = entry.get("athlete", {}).get("displayName", "").strip()
+            athlete = entry.get("athlete", {})
+            name = athlete.get("displayName", "").strip()
             if not name:
                 continue
+            team = _espn_team(athlete)
             sv = entry.get("shortDisplayValue", "")
             g_m = _G_RE.search(sv)
             a_m = _A_RE.search(sv)
@@ -73,10 +88,10 @@ def _parse_espn(data: dict) -> list[PlayerStat]:
             mp      = int(m_m.group(1)) if m_m else 0
 
             if name in seen:
-                # Merge: take max of each stat across categories
+                # Merge: take max of each stat across categories (keep known team)
                 existing = seen[name]
                 seen[name] = PlayerStat(
-                    name=name, team="",
+                    name=name, team=team or existing.team,
                     goals=max(existing.goals, goals),
                     assists=max(existing.assists, assists),
                     matches_played=max(existing.matches_played, mp),
@@ -84,7 +99,7 @@ def _parse_espn(data: dict) -> list[PlayerStat]:
                 )
             else:
                 seen[name] = PlayerStat(
-                    name=name, team="",
+                    name=name, team=team,
                     goals=goals, assists=assists,
                     matches_played=mp, minutes=0,
                 )
