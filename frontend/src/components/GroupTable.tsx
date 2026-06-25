@@ -26,9 +26,13 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
       border: '1px solid var(--border)',
       borderRadius: 12,
       overflow: 'hidden',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
     }}>
       {/* Card header */}
       <div style={{
+        flexShrink: 0,
         padding: '11px 16px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         background: 'var(--surface-hi)',
@@ -52,8 +56,10 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
         )}
       </div>
 
-      {/* Table */}
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      {/* Table — grows to fill the card so every group box is the same height,
+          regardless of whether a long team name wraps to two lines. */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', height: '100%', tableLayout: 'fixed' }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border-hi)' }}>
             <th style={{ padding: '8px 16px', textAlign: 'left' }}>
@@ -122,6 +128,7 @@ export default function GroupTable({ group, thirdPlace }: { group: GroupOdds; th
           })}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }

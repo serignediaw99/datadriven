@@ -62,7 +62,7 @@ export default function Groups() {
           ))}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(380px,1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(380px,1fr))', gridAutoRows: '1fr', gap: 16 }}>
           {(groups?.groups ?? []).map(g => (
             <GroupTable
               key={g.group}

@@ -2,9 +2,18 @@ import { useState, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { FlagImg } from '../lib/FlagImg'
-import type { ScenarioMatchOverride, ScenarioResponse, MatchEntry } from '../lib/types'
+import type { ScenarioMatchOverride, ScenarioResponse, MatchEntry, KnockoutProbs } from '../lib/types'
 
 type OverrideMap = Record<number, { score1: string; score2: string }>
+
+const STAGES: { key: keyof KnockoutProbs; label: string; title: string }[] = [
+  { key: 'R32',    label: 'R32',   title: 'Reach Round of 32 (qualify from group)' },
+  { key: 'R16',    label: 'R16',   title: 'Reach Round of 16' },
+  { key: 'QF',     label: 'QF',    title: 'Reach quarter-finals' },
+  { key: 'SF',     label: 'SF',    title: 'Reach semi-finals' },
+  { key: 'Final',  label: 'Final', title: 'Reach the final' },
+  { key: 'Winner', label: 'Champ', title: 'Win the tournament' },
+]
 
 function ScoreInput({
   label, value, onChange,
@@ -107,24 +116,21 @@ function MatchRow({
   )
 }
 
-function WinnerDelta({ team, baseline, scenario }: { team: string; baseline: number; scenario: number }) {
-  const delta = scenario - baseline
-  const color = delta > 0.005 ? '#2e7d52' : delta < -0.005 ? '#dc2626' : 'var(--text-3)'
-  const sign = delta > 0 ? '+' : ''
+function StageCell({ base, scen }: { base: number; scen: number }) {
+  const delta = scen - base
+  const color = delta > 0.005 ? '#2e7d52' : delta < -0.005 ? '#dc2626' : 'var(--text-1)'
+  const faded = scen < 0.001 && delta > -0.005
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-      <span style={{ width: 24 }}><FlagImg team={team} size={18} /></span>
-      <span style={{ flex: 1, fontSize: 13, color: 'var(--text-1)' }}>{team}</span>
-      <span style={{ fontSize: 12, color: 'var(--text-2)', width: 50, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-        {(baseline * 100).toFixed(1)}%
-      </span>
-      <span style={{ fontSize: 12, color, fontWeight: 700, width: 56, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-        {(scenario * 100).toFixed(1)}%
-        {Math.abs(delta) >= 0.005 && (
-          <span style={{ fontSize: 10, marginLeft: 2 }}>({sign}{(delta * 100).toFixed(1)})</span>
-        )}
-      </span>
-    </div>
+    <td style={{ padding: '6px 6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color, opacity: faded ? 0.35 : 1 }}>
+        {(scen * 100).toFixed(1)}
+      </div>
+      {Math.abs(delta) >= 0.005 && (
+        <div style={{ fontSize: 9, color, fontWeight: 600 }}>
+          {delta > 0 ? '+' : ''}{(delta * 100).toFixed(1)}
+        </div>
+      )}
+    </td>
   )
 }
 
@@ -176,21 +182,32 @@ export default function Scenario() {
     }
   }
 
-  const baselineByTeam: Record<string, number> = {}
+  const baselineProbs: Record<string, KnockoutProbs> = {}
   for (const t of koData?.teams ?? []) {
-    baselineByTeam[t.team] = t.probs.Winner
+    baselineProbs[t.team] = t.probs
   }
-  const scenarioByTeam: Record<string, number> = {}
+  const scenarioProbs: Record<string, KnockoutProbs> = {}
   for (const t of result?.knockout_odds ?? []) {
-    scenarioByTeam[t.team] = t.probs.Winner
+    scenarioProbs[t.team] = t.probs
   }
 
-  // Teams sorted by biggest delta
-  const allTeams = Object.keys(baselineByTeam)
+  // Largest probability swing across any stage — surfaces the teams the scenario
+  // actually moved (group overrides shift qualification odds most, not the title).
+  const maxSwing = (team: string): number => {
+    const b = baselineProbs[team], s = scenarioProbs[team]
+    if (!b || !s) return 0
+    return Math.max(...STAGES.map(st => Math.abs((s[st.key] ?? 0) - (b[st.key] ?? 0))))
+  }
+
+  const allTeams = Object.keys(baselineProbs)
   const movers = allTeams
-    .filter(t => Math.abs((scenarioByTeam[t] ?? 0) - baselineByTeam[t]) >= 0.001 || baselineByTeam[t] >= 0.02)
-    .sort((a, b) => (scenarioByTeam[b] ?? 0) - (scenarioByTeam[a] ?? 0))
-    .slice(0, 20)
+    .filter(t => maxSwing(t) >= 0.005 || (baselineProbs[t]?.Winner ?? 0) >= 0.015)
+    .sort((a, b) => {
+      const d = maxSwing(b) - maxSwing(a)
+      if (Math.abs(d) > 1e-9) return d
+      return (scenarioProbs[b]?.Winner ?? 0) - (scenarioProbs[a]?.Winner ?? 0)
+    })
+    .slice(0, 24)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -203,11 +220,11 @@ export default function Scenario() {
           <span className="gradient-text">Scenario Explorer</span>
         </h1>
         <p style={{ fontSize: 13, color: 'var(--text-2)' }}>
-          Set hypothetical match scores for upcoming group stage games and see how the championship odds shift.
+          Set hypothetical match scores for upcoming group stage games and see how the odds shift at every stage — from qualifying to the title.
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: result ? '1fr 1fr' : '1fr', gap: 24, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: result ? 'minmax(0, 0.85fr) minmax(0, 1.15fr)' : '1fr', gap: 24, alignItems: 'start' }}>
         {/* Left: match overrides */}
         <div className="card" style={{ padding: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -266,30 +283,55 @@ export default function Scenario() {
           </div>
         </div>
 
-        {/* Right: results */}
+        {/* Right: results — per-stage advancement odds */}
         {result && (
           <div className="card" style={{ padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
               <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>
-                Championship Odds
+                Stage-by-Stage Odds
               </h2>
               <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
                 {result.n_simulations.toLocaleString()} sims · {result.elapsed_seconds.toFixed(1)}s
               </span>
             </div>
-            <div style={{ display: 'flex', gap: 40, marginBottom: 12 }}>
-              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>Team</span>
-              <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-3)', width: 50, textAlign: 'right' }}>Baseline</span>
-              <span style={{ fontSize: 11, color: 'var(--text-3)', width: 56, textAlign: 'right' }}>Scenario</span>
+            <p style={{ margin: '0 0 12px', fontSize: 11, color: 'var(--text-3)' }}>
+              Scenario % to reach each round; small number is the change vs. baseline.
+            </p>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 380 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', padding: '0 6px 8px', position: 'sticky', left: 0, background: 'var(--surface)' }}>
+                      Team
+                    </th>
+                    {STAGES.map(s => (
+                      <th key={s.key} title={s.title} style={{ textAlign: 'right', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', padding: '0 6px 8px', cursor: 'help' }}>
+                        {s.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {movers.map(team => {
+                    const base = baselineProbs[team]
+                    const scen = scenarioProbs[team]
+                    return (
+                      <tr key={team} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '6px 6px', position: 'sticky', left: 0, background: 'var(--surface)' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                            <FlagImg team={team} size={16} />
+                            <span style={{ fontSize: 12, color: 'var(--text-1)' }}>{team}</span>
+                          </span>
+                        </td>
+                        {STAGES.map(s => (
+                          <StageCell key={s.key} base={base?.[s.key] ?? 0} scen={scen?.[s.key] ?? 0} />
+                        ))}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
-            {movers.map(team => (
-              <WinnerDelta
-                key={team}
-                team={team}
-                baseline={baselineByTeam[team] ?? 0}
-                scenario={scenarioByTeam[team] ?? 0}
-              />
-            ))}
           </div>
         )}
       </div>
