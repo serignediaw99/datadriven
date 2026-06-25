@@ -26,49 +26,14 @@ _SLOT_ORDER = sorted(THIRD_PLACE_SLOTS.keys())
 
 _GROUP_LETTERS = "ABCDEFGHIJKL"
 
-
-def _match_groups_to_slots(group_indices) -> dict[int, int] | None:
-    """
-    Find a perfect matching of 8 qualifying groups to the 8 third-place R32 slots,
-    respecting each slot's eligible groups (Kuhn's augmenting-path algorithm).
-
-    Returns {slot_match_num: group_idx} or None if no perfect matching exists.
-
-    This REPLACES the old per-slot greedy, which failed to find an existing matching
-    in ~80% of group combinations — catastrophically for groups eligible for only one
-    slot (e.g. Group K → slot 80 only): an earlier-letter group would take that slot
-    and K's qualifier was silently dropped, making its 3rd-place team almost never
-    qualify regardless of points. A correct matching always exists (verified for all
-    495 combinations), so every qualifying 3rd-place team gets a valid distinct slot.
-    """
-    slots = list(_SLOT_ORDER)
-    slot_to_group: dict[int, int] = {}
-
-    def assign(gi: int, visited: set) -> bool:
-        for slot in slots:
-            if _GROUP_LETTERS[gi] in THIRD_PLACE_SLOTS[slot] and slot not in visited:
-                visited.add(slot)
-                if slot not in slot_to_group or assign(slot_to_group[slot], visited):
-                    slot_to_group[slot] = gi
-                    return True
-        return False
-
-    for gi in group_indices:
-        if not assign(int(gi), set()):
-            return None
-    return slot_to_group
-
-
-# Precompute the slot assignment for every possible set of 8 qualifying groups
-# (C(12,8) = 495). Lookup is O(1) per simulation — faster than the old per-sim greedy
-# and, unlike it, always correct.
-import itertools as _itertools
-
-_THIRD_PLACE_ASSIGNMENT: dict[frozenset, dict[int, int]] = {
-    frozenset(_c): _m
-    for _c in _itertools.combinations(range(12), 8)
-    if (_m := _match_groups_to_slots(_c)) is not None
-}
+# Official FIFA 2026 third-place allocation (Regulations Annexe C): for each of the
+# 495 combinations of qualifying groups, the fixed {r32_match_number: group index}
+# assignment. Replaces an arbitrary perfect matching so projected R32 opponents match
+# the real bracket (e.g. 1D = USA reliably draws the same third-place team the actual
+# table dictates, instead of being shuffled by the matcher). O(1) lookup per sim.
+from app.simulation.third_place_allocation import (
+    OFFICIAL_THIRD_PLACE_ASSIGNMENT as _THIRD_PLACE_ASSIGNMENT,
+)
 
 
 def select_third_place_qualifiers(
