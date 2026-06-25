@@ -3,8 +3,10 @@ services:
     name: datadriven-api
     runtime: python
     rootDir: backend
-    buildCommand: pip install uv && uv sync --frozen
-    startCommand: uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    # --active: use the virtualenv Render activates ($VIRTUAL_ENV) instead of uv's
+    # own backend/.venv, so the two don't mismatch (silences the VIRTUAL_ENV warning).
+    buildCommand: pip install uv && uv sync --frozen --active
+    startCommand: uv run --active uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
