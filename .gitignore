@@ -18,9 +18,11 @@ frontend/dist/
 # Runtime data caches (regenerated at runtime)
 backend/cache.db
 backend/intl_results.csv
-backend/fitted_ratings.json
 backend/odds_outrights.json
 backend/odds_h2h.json
+# NOTE: backend/fitted_ratings.json is intentionally committed (a startup seed so the
+# server uses the Dixon-Coles model immediately instead of the Elo fallback). The
+# daily refit overwrites it at runtime.
 
 # macOS
 .DS_Store
