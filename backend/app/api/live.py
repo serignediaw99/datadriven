@@ -34,7 +34,9 @@ async def live_stream():
                     event = await asyncio.wait_for(queue.get(), timeout=30)
                     yield {
                         "event": event.get("type", "update"),
-                        "data": json.dumps({"timestamp": event.get("timestamp")}),
+                        # Forward the whole payload: just a timestamp for sim_update,
+                        # full goal details for `goal` events.
+                        "data": json.dumps({k: v for k, v in event.items() if k != "type"}),
                     }
                 except asyncio.TimeoutError:
                     # Send a keepalive comment so proxies don't close idle connections

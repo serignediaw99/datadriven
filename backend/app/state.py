@@ -15,6 +15,7 @@ import asyncio
 import unicodedata
 import logging
 import os
+import time
 from typing import Optional
 
 import math
@@ -25,6 +26,7 @@ from app.data.openfootball import WCMatch, fetch_matches, extract_scorers
 from app.data.elo import fetch_elo_ratings, get_team_elo, FALLBACK_ELO
 from app.data.fbref import fetch_player_stats, PlayerStat
 from app.data.results_history import fetch_results
+from app.data.espn_scoreboard import fetch_scoreboard
 from app.data import odds_api
 from app.data.metadata import host_playing_at_home
 from app.models import ratings as ratings_mod
@@ -63,6 +65,7 @@ class TournamentState:
         self.players: list[PlayerEntry] = []
         self.result: Optional[SimulationResult] = None
         self._last_match_hash: int = 0
+        self._live_goal_counts: dict[str, int] = {}  # ESPN event id -> goals seen
         self._subscribers: list[asyncio.Queue] = []
         self._lock = asyncio.Lock()
 
@@ -86,6 +89,53 @@ class TournamentState:
                 q.put_nowait(event)
             except asyncio.QueueFull:
                 pass
+
+    # --- Live in-play goal feed (ESPN scoreboard, polled every few seconds) ---
+
+    async def poll_live(self, session: Optional[aiohttp.ClientSession] = None) -> None:
+        """
+        Poll ESPN's scoreboard and push a `goal` SSE event for each newly-scored goal.
+        Cheap and independent of the simulation: dedupe by per-match goal count, and on
+        the first sighting of a match record its count WITHOUT emitting (so we never
+        replay goals that happened before the app was watching). Best-effort.
+        """
+        close = session is None
+        if close:
+            session = aiohttp.ClientSession()
+        try:
+            matches = await fetch_scoreboard(session)
+        except Exception as e:
+            log.debug("Live scoreboard poll failed: %s", e)
+            return
+        finally:
+            if close and session is not None:
+                await session.close()
+
+        win_odds = {}
+        if self.result is not None:
+            win_odds = {r["team"]: r["probs"].get("Winner") for r in self.result.knockout_odds}
+
+        for m in matches:
+            cur = len(m.goals)
+            prev = self._live_goal_counts.get(m.event_id)
+            if prev is None:
+                self._live_goal_counts[m.event_id] = cur  # first sighting — no replay
+                continue
+            if cur > prev:
+                for g in m.goals[prev:cur]:
+                    self._notify({
+                        "type": "goal",
+                        "home": m.home, "away": m.away,
+                        "home_score": m.home_score, "away_score": m.away_score,
+                        "team": g.team, "scorer": g.scorer, "minute": g.minute,
+                        "own_goal": g.own_goal, "penalty": g.penalty,
+                        "status": m.status,
+                        "team_win_odds": win_odds.get(g.team),
+                        "timestamp": time.time(),
+                    })
+                log.info("Live goal: %s %d-%d (%s %s)", m.home + " v " + m.away,
+                         m.home_score, m.away_score, m.goals[-1].team, m.goals[-1].minute)
+            self._live_goal_counts[m.event_id] = cur
 
     # --- Data refresh ---
 

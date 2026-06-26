@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import NavBar from './components/NavBar'
+import GoalToasts from './components/GoalToasts'
 import Dashboard from './pages/Dashboard'
 import Groups from './pages/Groups'
 import Knockout from './pages/Knockout'
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/scenario"   element={<Scenario />} />
         </Routes>
       </main>
+      <GoalToasts />
     </BrowserRouter>
   )
 }
