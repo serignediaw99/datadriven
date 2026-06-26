@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 import NavBar from './components/NavBar'
 import GoalToasts from './components/GoalToasts'
 import Dashboard from './pages/Dashboard'
@@ -31,6 +32,7 @@ export default function App() {
         </Routes>
       </main>
       <GoalToasts />
+      <Analytics />
     </BrowserRouter>
   )
 }
