@@ -29,6 +29,7 @@ _ESPN_TEAM_TO_CANONICAL = {
     "Congo DR": "DR Congo",
     "Czechia": "Czech Republic",
     "Bosnia-Herzegovina": "Bosnia & Herzegovina",
+    "Türkiye": "Turkey",
 }
 
 

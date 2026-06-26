@@ -69,6 +69,10 @@ class TournamentState:
         # Live in-play overlay {match.num: (cur_team1, cur_team2, fraction_remaining)};
         # fixes the current score and samples only the rest of the match.
         self.live_overlay: dict[int, tuple[int, int, float]] = {}
+        # Live display state for the matches/path UI {match.num: {score1, score2,
+        # state, status, minute}} (data orientation). Sourced from ESPN ahead of the
+        # slower OpenFootball feed.
+        self.live_status: dict[int, dict] = {}
         self._subscribers: list[asyncio.Queue] = []
         self._lock = asyncio.Lock()
 
@@ -104,18 +108,20 @@ class TournamentState:
             inplay=self.live_overlay or None,
         )
 
-    def _build_live_overlay(self, live_matches) -> dict[int, tuple[int, int, float]]:
+    def _build_live_state(self, live_matches) -> tuple[dict, dict]:
         """
-        Map ESPN in-play / just-finished matches onto sim match numbers, as
-        {match.num: (cur_team1, cur_team2, fraction_remaining)} in data orientation.
-        Only matches OpenFootball hasn't already marked played are included; a final
-        (ESPN "post") match gets fraction 0.0 so the sim treats its score as locked.
+        Map ESPN in-play / just-finished matches onto sim match numbers. Returns:
+          overlay {match.num: (cur_team1, cur_team2, fraction_remaining)} for the sim
+                  (a final "post" match gets fraction 0.0 so its score is locked), and
+          status  {match.num: {score1, score2, state, status, minute}} for the UI.
+        Both in data orientation; only matches OpenFootball hasn't marked played yet.
         """
         by_pair = {
             frozenset((m.team1, m.team2)): m
             for m in self.matches if m.group and not m.is_played
         }
         overlay: dict[int, tuple[int, int, float]] = {}
+        status: dict[int, dict] = {}
         for lm in live_matches:
             if lm.state not in ("in", "post"):
                 continue
@@ -133,7 +139,11 @@ class TournamentState:
                 # remaining share of a 90' match, floored so a 90'+ score isn't certain
                 frac = min(1.0, max((90 - lm.minute) / 90.0, 0.03))
             overlay[m.num] = (c1, c2, frac)
-        return overlay
+            status[m.num] = {
+                "score1": c1, "score2": c2, "state": lm.state,
+                "status": lm.status, "minute": lm.minute,
+            }
+        return overlay, status
 
     # --- Live in-play goal feed (ESPN scoreboard, polled every few seconds) ---
 
@@ -185,7 +195,8 @@ class TournamentState:
         # Fold live scores into the simulation. Re-sim whenever the overlay changes —
         # which includes the clock ticking down (a lead is worth more with less time
         # left), not just goals — so live win probabilities update continuously.
-        new_overlay = self._build_live_overlay(matches)
+        new_overlay, new_status = self._build_live_state(matches)
+        self.live_status = new_status  # always current for the matches/path UI
         if new_overlay != self.live_overlay and (new_overlay or self.live_overlay):
             async with self._lock:
                 self.live_overlay = new_overlay

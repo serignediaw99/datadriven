@@ -16,7 +16,9 @@ function groupByDate(matches: MatchEntry[]) {
 }
 
 function MatchCard({ m }: { m: MatchEntry }) {
+  const isLive = m.status === 'live'
   const isPlayed = m.status === 'played'
+  const showScore = isPlayed || isLive
   return (
     <Link to={`/match/${m.id}`} style={{ textDecoration: 'none' }}>
       <div
@@ -33,7 +35,16 @@ function MatchCard({ m }: { m: MatchEntry }) {
       >
         {/* Metadata row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span className="label">{m.round}</span>
+          {isLive ? (
+            <span className="label" style={{ color: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span className="live-dot" style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: 'var(--green)', position: 'relative', display: 'inline-block',
+              }} /> LIVE{m.live_minute ? ` ${m.live_minute}'` : ''}
+            </span>
+          ) : (
+            <span className="label">{m.round}</span>
+          )}
           {m.group && <span className="label" style={{ color: 'var(--accent)' }}>{m.group}</span>}
         </div>
 
@@ -51,11 +62,11 @@ function MatchCard({ m }: { m: MatchEntry }) {
           </div>
 
           <div style={{ padding: '0 10px', textAlign: 'center', minWidth: 60 }}>
-            {isPlayed ? (
+            {showScore ? (
               <span style={{
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontWeight: 700, fontSize: 17,
-                color: 'var(--text-1)',
+                color: isLive ? 'var(--green)' : 'var(--text-1)',
                 letterSpacing: '.03em',
                 fontVariantNumeric: 'tabular-nums',
               }}>
@@ -79,9 +90,14 @@ function MatchCard({ m }: { m: MatchEntry }) {
           </div>
         </div>
 
-        {!isPlayed && (
+        {m.status === 'upcoming' && (
           <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-3)', textAlign: 'center', fontWeight: 500 }}>
             Prediction available →
+          </div>
+        )}
+        {isLive && m.live_status && (
+          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--green)', textAlign: 'center', fontWeight: 600 }}>
+            {m.live_status}
           </div>
         )}
       </div>
@@ -105,7 +121,10 @@ export default function Matches() {
   const total  = data?.matches.length ?? 0
   const played = data?.matches.filter(m => m.status === 'played').length ?? 0
 
-  const filtered = (data?.matches ?? []).filter(m => filter === 'all' || m.status === filter)
+  // Live matches are "in progress" — surface them under the Upcoming tab.
+  const filtered = (data?.matches ?? []).filter(m =>
+    filter === 'all' || m.status === filter || (filter === 'upcoming' && m.status === 'live')
+  )
   const byDate = groupByDate(filtered)
 
   return (
