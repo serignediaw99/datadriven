@@ -22,7 +22,7 @@ export interface AwardsResponse { players: PlayerAwardEntry[]; n_simulations: nu
 
 export interface ScorelineEntry { score: string; probability: number }
 export interface PredictionResponse {
-  match_id: number; status: 'played' | 'upcoming'; date?: string
+  match_id: number; status: 'played' | 'upcoming'; date?: string; venue?: string | null
   team1: string; team2: string; result?: string
   xg_home?: number; xg_away?: number
   top_scorelines?: ScorelineEntry[]
@@ -33,6 +33,7 @@ export interface PredictionResponse {
 }
 export interface MatchEntry {
   id: number; round: string; group: string | null; date: string
+  venue?: string | null
   team1: string; team2: string; score1: number | null; score2: number | null
   status: 'played' | 'upcoming' | 'live'
   live_minute?: number

@@ -90,8 +90,13 @@ function MatchCard({ m }: { m: MatchEntry }) {
           </div>
         </div>
 
+        {m.venue && (
+          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-3)', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <span aria-hidden style={{ opacity: 0.7 }}>📍</span>{m.venue}
+          </div>
+        )}
         {m.status === 'upcoming' && (
-          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-3)', textAlign: 'center', fontWeight: 500 }}>
+          <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-3)', textAlign: 'center', fontWeight: 500 }}>
             Prediction available →
           </div>
         )}
