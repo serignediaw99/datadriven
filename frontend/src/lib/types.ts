@@ -45,6 +45,7 @@ export interface BracketSlotTeam { team: string; p_slot: number }
 export interface BracketMatch {
   id: number
   match_num?: number
+  venue?: string | null
   slot_a?: { desc: string; teams: BracketSlotTeam[] }
   slot_b?: { desc: string; teams: BracketSlotTeam[] }
   team_a: string; team_b: string
@@ -58,7 +59,7 @@ export interface BracketResponse {
   r16: BracketMatch[]
   qf: BracketMatch[]
   sf: BracketMatch[]
-  final: { team_a: string; team_b: string; winner: string; p_win: number; p_a_wins: number }
+  final: { team_a: string; team_b: string; winner: string; p_win: number; p_a_wins: number; venue?: string | null }
 }
 
 export interface PathOpponent { opponent: string; p: number }
