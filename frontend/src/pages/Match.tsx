@@ -90,7 +90,9 @@ export default function Match() {
           ← Fixtures
         </Link>
         <div className="card" style={{ padding: 48, textAlign: 'center' }}>
-          <div className="label" style={{ marginBottom: 20 }}>Final Result</div>
+          <div className="label" style={{ marginBottom: 20 }}>
+            Final Result{pred.venue ? ` · 📍 ${pred.venue}` : ''}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28 }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ marginBottom: 8 }}><FlagImg team={pred.team1} size={44} /></div>
@@ -123,7 +125,7 @@ export default function Match() {
       {/* Match header */}
       <div className="card" style={{ padding: 28 }}>
         <div className="label" style={{ marginBottom: 20 }}>
-          {pred.date} · Pre-match Prediction
+          {pred.date} · Pre-match Prediction{pred.venue ? ` · 📍 ${pred.venue}` : ''}
         </div>
 
         {/* Teams + xG */}

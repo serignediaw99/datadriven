@@ -25,6 +25,7 @@ async def list_matches():
             "round": m.round,
             "group": m.group,
             "date": m.date,
+            "venue": m.ground or None,
             "team1": m.team1,
             "team2": m.team2,
             "score1": m.score1,
@@ -58,6 +59,7 @@ async def get_prediction(match_id: int):
             "result": f"{match.score1}-{match.score2}",
             "team1": match.team1,
             "team2": match.team2,
+            "venue": match.ground or None,
         }
 
     p1 = state.team_params.get(match.team1)
@@ -80,6 +82,7 @@ async def get_prediction(match_id: int):
         "match_id": match_id,
         "status": "upcoming",
         "date": match.date,
+        "venue": match.ground or None,
         "team1": match.team1,
         "team2": match.team2,
         "xg_home": round(lam1, 2),
