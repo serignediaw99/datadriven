@@ -23,35 +23,49 @@ export default function About() {
         <div className="card" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
           <Step n="1" title="Data ingestion">
             Every 5 minutes, live match results are pulled from OpenFootball's open-source
-            worldcup.json feed. Player goal and assist tallies are sourced from the ESPN statistics
-            API. Elo ratings for all 48 teams are fetched from eloratings.net.
+            worldcup.json feed, and ESPN's scoreboard is polled every 45 seconds for in-play
+            scores and goals. Player goal and assist tallies come from the ESPN statistics API.
+            The strength model is fit from ~28,000 historical international results, with Elo
+            ratings from eloratings.net kept as a fallback.
           </Step>
           <Divider />
           <Step n="2" title="Team strength model">
-            Each team's Elo rating is converted into attack (α) and defense (β) parameters.
-            Expected goals for any matchup are computed as{' '}
-            <code style={code}>λ = 1.15 × exp(α_i − β_j)</code>, where 1.15 is the
-            neutral-venue World Cup average. Completed matches are treated as fixed outcomes —
-            only unplayed fixtures are simulated.
+            Team ratings come from a time-weighted Dixon-Coles model fit to ~28,000 international
+            matches, giving each team attack (α) and defense (β) parameters. Expected goals for a
+            matchup are{' '}
+            <code style={code}>λ = exp(μ + α_i − β_j + γ·home)</code>, where μ ≈ 0.18 sets the
+            baseline (~1.2 goals), γ ≈ 0.24 is home advantage, recent matches are weighted more
+            heavily (exponential time-decay), and a low-score correction (ρ) adjusts the frequency
+            of 0–0, 1–0, and 1–1 results. Completed matches are treated as fixed outcomes — only
+            unplayed fixtures are simulated.
           </Step>
           <Divider />
-          <Step n="3" title="50,000 simulations">
+          <Step n="3" title="Bookmaker-odds blend">
+            When a bookmaker API key is configured, the model is calibrated to the market: team
+            strengths are nudged toward de-vigged outright-winner odds, and priced upcoming group
+            fixtures take their goal rates from the de-vigged head-to-head market. Without a key,
+            the app runs the pure model.
+          </Step>
+          <Divider />
+          <Step n="4" title="Tens of thousands of simulations">
             Goals for every unplayed match are sampled simultaneously using vectorized NumPy
-            Poisson draws — 50,000 full tournaments in roughly 4 seconds. Each simulation runs
-            the complete group stage (with FIFA tiebreakers including head-to-head), selects the
-            8 best third-place teams, and plays out R32 → R16 → QF → SF → Final.
+            Poisson draws — a full batch of tournaments per run (50,000 locally, 15,000 on the
+            hosted instance). Each simulation runs the complete group stage (with FIFA tiebreakers
+            including head-to-head), allocates the 8 best third-place teams to the round of 32 via
+            FIFA's official 2026 bracket table, and plays out R32 → R16 → QF → SF → Final.
           </Step>
           <Divider />
-          <Step n="4" title="Player awards">
+          <Step n="5" title="Player awards">
             For each unplayed match, team goals are distributed among tracked players using each
             player's historical share of their team's scoring. Simulated future goals are stacked
             on top of current tournament tallies to estimate golden boot and top assists odds.
           </Step>
           <Divider />
-          <Step n="5" title="Live updates">
-            When a new result is detected, the simulator re-runs all 50,000 simulations and
-            pushes a server-sent event to all connected clients. Every page updates automatically
-            within seconds of a goal being recorded.
+          <Step n="6" title="Live updates">
+            When a new result is detected — or while a match is in play — the simulator re-runs the
+            full batch, folding the current score and time remaining into every live fixture, then
+            pushes a server-sent event to all connected clients. Win probabilities update within
+            seconds of a goal being recorded.
           </Step>
         </div>
       </section>
@@ -68,7 +82,7 @@ export default function About() {
             { page: 'Awards',     desc: 'Golden boot and top assists race — current tally, projected total, and win probability.' },
             { page: 'Matches',    desc: 'Full fixture list with results and upcoming kick-off times.' },
             { page: 'Path',       desc: 'Select any team to see their most likely opponents round by round. Enter hypothetical scores to run a scenario and see how their bracket path shifts.' },
-            { page: 'Scenario',   desc: 'Set scores for any upcoming group stage matches and re-run 20,000 simulations to see how the championship odds change across all 48 teams.' },
+            { page: 'Scenario',   desc: 'Set scores for any upcoming group stage matches and re-run the simulation to see how the championship odds change across all 48 teams.' },
             { page: 'About',      desc: 'This page.' },
           ].map(({ page, desc }, i, arr) => (
             <div key={page} style={{
@@ -98,8 +112,8 @@ export default function About() {
           {[
             { label: 'Backend',    value: 'Python · FastAPI · NumPy · APScheduler' },
             { label: 'Frontend',   value: 'React · TypeScript · Vite · React Query' },
-            { label: 'Model',      value: 'Poisson regression · Elo ratings · H2H tiebreakers' },
-            { label: 'Data',       value: 'OpenFootball · ESPN API · eloratings.net' },
+            { label: 'Model',      value: 'Time-weighted Dixon-Coles · Poisson · bookmaker-odds blend' },
+            { label: 'Data',       value: 'OpenFootball · ESPN API · The Odds API · eloratings.net' },
           ].map(({ label, value }) => (
             <div key={label} className="card" style={{ padding: '16px 18px' }}>
               <div className="label" style={{ marginBottom: 6 }}>{label}</div>
