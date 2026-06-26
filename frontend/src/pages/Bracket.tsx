@@ -14,7 +14,7 @@ const R32_ORDER = [1, 4, 0, 2,   10, 11, 8, 9,   3, 5, 6, 7,   13, 15, 12, 14]
 const R16_ORDER = [0, 1, 4, 5,   2,  3,  6, 7]
 // QF and SF are already in the right order (0,1,2,3 and 0,1)
 
-const CELL_H = 60  // px per R32 slot
+const CELL_H = 80  // px per R32 slot (tall enough for the venue line under each card)
 const CONN = 18    // px connector width
 const LINE = 'rgba(101,62,18,0.14)'
 const CARD_W = 186
