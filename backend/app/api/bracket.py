@@ -121,6 +121,10 @@ async def get_bracket():
     g1, g2  = _build_group_slots(gmap)
     tp3     = _assign_third_place(tpmap, gmap)
 
+    # Venue per knockout match number (R32 73-88, R16 89-96, QF 97-100, SF 101-102,
+    # Final 104) from the fixture data.
+    venues = {m.num: (m.ground or None) for m in state.matches}
+
     # R32
     r32: list[dict] = []
     r32_w: list[str] = []
@@ -128,7 +132,7 @@ async def get_bracket():
         ta = _resolve(da, g1, g2, tp3)
         tb = _resolve(db, g1, g2, tp3)
         res = _match(ta, tb, params)
-        r32.append({"id": mi, "match_num": 73 + mi, **res})
+        r32.append({"id": mi, "match_num": 73 + mi, "venue": venues.get(73 + mi), **res})
         r32_w.append(res["winner"])
 
     # R16
@@ -136,7 +140,8 @@ async def get_bracket():
     r16_w: list[str] = []
     for ri, (ia, ib) in enumerate(R16_BRACKET):
         res = _match(r32_w[ia], r32_w[ib], params)
-        r16.append({"id": ri, "r32_a": ia, "r32_b": ib, **res})
+        r16.append({"id": ri, "match_num": 89 + ri, "venue": venues.get(89 + ri),
+                    "r32_a": ia, "r32_b": ib, **res})
         r16_w.append(res["winner"])
 
     # QF
@@ -144,7 +149,8 @@ async def get_bracket():
     qf_w: list[str] = []
     for qi, (ia, ib) in enumerate(QF_BRACKET):
         res = _match(r16_w[ia], r16_w[ib], params)
-        qf.append({"id": qi, "r16_a": ia, "r16_b": ib, **res})
+        qf.append({"id": qi, "match_num": 97 + qi, "venue": venues.get(97 + qi),
+                   "r16_a": ia, "r16_b": ib, **res})
         qf_w.append(res["winner"])
 
     # SF
@@ -152,10 +158,11 @@ async def get_bracket():
     sf_w: list[str] = []
     for si, (ia, ib) in enumerate(SF_BRACKET):
         res = _match(qf_w[ia], qf_w[ib], params)
-        sf.append({"id": si, "qf_a": ia, "qf_b": ib, **res})
+        sf.append({"id": si, "match_num": 101 + si, "venue": venues.get(101 + si),
+                   "qf_a": ia, "qf_b": ib, **res})
         sf_w.append(res["winner"])
 
     return {
         "r32": r32, "r16": r16, "qf": qf, "sf": sf,
-        "final": _match(sf_w[0], sf_w[1], params),
+        "final": {"match_num": 104, "venue": venues.get(104), **_match(sf_w[0], sf_w[1], params)},
     }

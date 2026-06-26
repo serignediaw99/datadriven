@@ -55,6 +55,15 @@ function MatchCard({ m }: { m: BracketMatch }) {
       <TeamRow team={m.team_a} isWinner={m.winner === m.team_a} />
       <div style={{ height: 1, background: 'var(--border)' }} />
       <TeamRow team={m.team_b} isWinner={m.winner === m.team_b} />
+      {m.venue && (
+        <div style={{
+          padding: '3px 6px', fontSize: 9, color: 'var(--text-3)',
+          borderTop: '1px solid var(--border)', background: 'var(--surface-hi)',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }} title={m.venue}>
+          📍 {m.venue}
+        </div>
+      )}
     </div>
   )
 }
@@ -144,6 +153,7 @@ function FinalColumn({ data, totalH }: { data: BracketResponse['final']; totalH:
   const m: BracketMatch = {
     id: 99, team_a: data.team_a, team_b: data.team_b,
     winner: data.winner, p_win: data.p_win, p_a_wins: data.p_a_wins,
+    venue: data.venue,
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
