@@ -59,10 +59,14 @@ def run(
     players: list[PlayerEntry],
     n: int = 50_000,
     match_lambda_overrides: Optional[dict[int, tuple[float, float]]] = None,
+    inplay: Optional[dict[int, tuple[int, int, float]]] = None,
 ) -> SimulationResult:
     # match_lambda_overrides: {match.num: (lambda_team1, lambda_team2)} — bookmaker
     # h2h-derived goal rates that replace the model's for specific upcoming group
     # fixtures (in data orientation, i.e. for m.team1 / m.team2).
+    # inplay: {match.num: (current_team1_goals, current_team2_goals, fraction_remaining)}
+    # for live group fixtures — the current score is fixed and only the remaining
+    # fraction of the match is sampled (fraction 0.0 = treat as final). Data orientation.
     t0 = time.perf_counter()
 
     # --- Build global team index ---
@@ -144,6 +148,8 @@ def run(
     unplayed_indices: list[int] = []
     lam1_list: list[float] = []
     lam2_list: list[float] = []
+    base1_list: list[int] = []   # goals already scored in a live match (canonical)
+    base2_list: list[int] = []
 
     for m in matches:
         if m.group and not m.is_played and m.num in match_index_map:
@@ -168,17 +174,28 @@ def run(
                     lam2 = ratings.BASE_RATE * math.exp(p2.alpha - p1.beta + h2)
                 else:
                     lam1 = lam2 = ratings.BASE_RATE
+            # Live match: fix the current score, sample only the remaining fraction.
+            base1 = base2 = 0
+            live = inplay.get(m.num) if inplay else None
+            if live is not None:
+                c1, c2, frac = live
+                base1, base2 = (c2, c1) if flipped else (c1, c2)  # canonical orientation
+                lam1 *= frac
+                lam2 *= frac
             unplayed_indices.append(fi)
             lam1_list.append(lam1)
             lam2_list.append(lam2)
+            base1_list.append(base1)
+            base2_list.append(base2)
 
     if unplayed_indices:
         lam1_arr = np.array(lam1_list)
         lam2_arr = np.array(lam2_list)
         sampled1 = np.random.poisson(lam=lam1_arr, size=(n, len(lam1_list)))
         sampled2 = np.random.poisson(lam=lam2_arr, size=(n, len(lam2_list)))
-        goals1[:, unplayed_indices] = sampled1
-        goals2[:, unplayed_indices] = sampled2
+        # Add goals already scored in any live matches (broadcast across sims).
+        goals1[:, unplayed_indices] = sampled1 + np.array(base1_list, dtype=np.int32)
+        goals2[:, unplayed_indices] = sampled2 + np.array(base2_list, dtype=np.int32)
 
     # --- Group stage standings ---
     ranks, pts, gd, gf = compute_group_standings(goals1, goals2, groups)

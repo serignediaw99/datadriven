@@ -31,6 +31,9 @@ async def lifespan(app: FastAPI):
 
     # Poll for new results every 5 minutes (consumes the persisted ratings).
     scheduler.add_job(state.refresh, "interval", minutes=5, id="poll_data")
+    # Poll ESPN's live scoreboard every 45s for near-real-time goal reactions (cheap;
+    # only pushes SSE `goal` events, doesn't re-simulate).
+    scheduler.add_job(state.poll_live, "interval", seconds=45, id="poll_live")
     # Refit the Dixon-Coles team-strength model once a day (heavy: re-scrapes
     # ~50k historical results and re-fits). Kick off an initial fit in the
     # background if none is persisted yet, so the app serves immediately.

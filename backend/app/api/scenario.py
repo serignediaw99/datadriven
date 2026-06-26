@@ -53,11 +53,13 @@ async def explore_scenario(request: ScenarioRequest):
         else:
             patched.append(m)
 
-    # Carry the bookmaker h2h market calibration into the what-if sim (matches the
-    # user explicitly override become fixed scores and ignore their override).
+    # Carry the bookmaker h2h calibration and live in-play scores into the what-if sim
+    # (matches the user explicitly overrides become fixed scores; their override and any
+    # live overlay for that match are ignored since it is then is_played).
     result = run_simulation(
         patched, state.team_params, [], n=n,
         match_lambda_overrides=state.match_overrides or None,
+        inplay=state.live_overlay or None,
     )
 
     path = None

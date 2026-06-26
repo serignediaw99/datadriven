@@ -15,6 +15,7 @@ import asyncio
 import unicodedata
 import logging
 import os
+import time
 from typing import Optional
 
 import math
@@ -25,6 +26,7 @@ from app.data.openfootball import WCMatch, fetch_matches, extract_scorers
 from app.data.elo import fetch_elo_ratings, get_team_elo, FALLBACK_ELO
 from app.data.fbref import fetch_player_stats, PlayerStat
 from app.data.results_history import fetch_results
+from app.data.espn_scoreboard import fetch_scoreboard
 from app.data import odds_api
 from app.data.metadata import host_playing_at_home
 from app.models import ratings as ratings_mod
@@ -63,6 +65,10 @@ class TournamentState:
         self.players: list[PlayerEntry] = []
         self.result: Optional[SimulationResult] = None
         self._last_match_hash: int = 0
+        self._live_goal_counts: dict[str, int] = {}  # ESPN event id -> goals seen
+        # Live in-play overlay {match.num: (cur_team1, cur_team2, fraction_remaining)};
+        # fixes the current score and samples only the rest of the match.
+        self.live_overlay: dict[int, tuple[int, int, float]] = {}
         self._subscribers: list[asyncio.Queue] = []
         self._lock = asyncio.Lock()
 
@@ -86,6 +92,106 @@ class TournamentState:
                 q.put_nowait(event)
             except asyncio.QueueFull:
                 pass
+
+    def _run_sim(self, matches=None, with_overrides: bool = True):
+        """Run the simulation with the current ratings, bookmaker h2h overrides, and
+        live in-play overlay applied. ``with_overrides=False`` omits the h2h blend
+        (used for the pre-blend base sim)."""
+        return run_simulation(
+            self.matches if matches is None else matches,
+            self.team_params, self.players, n=N_SIMS,
+            match_lambda_overrides=(self.match_overrides or None) if with_overrides else None,
+            inplay=self.live_overlay or None,
+        )
+
+    def _build_live_overlay(self, live_matches) -> dict[int, tuple[int, int, float]]:
+        """
+        Map ESPN in-play / just-finished matches onto sim match numbers, as
+        {match.num: (cur_team1, cur_team2, fraction_remaining)} in data orientation.
+        Only matches OpenFootball hasn't already marked played are included; a final
+        (ESPN "post") match gets fraction 0.0 so the sim treats its score as locked.
+        """
+        by_pair = {
+            frozenset((m.team1, m.team2)): m
+            for m in self.matches if m.group and not m.is_played
+        }
+        overlay: dict[int, tuple[int, int, float]] = {}
+        for lm in live_matches:
+            if lm.state not in ("in", "post"):
+                continue
+            m = by_pair.get(frozenset((lm.home, lm.away)))
+            if m is None:
+                continue
+            # data orientation (m.team1, m.team2)
+            if lm.home == m.team1:
+                c1, c2 = lm.home_score, lm.away_score
+            else:
+                c1, c2 = lm.away_score, lm.home_score
+            if lm.state == "post":
+                frac = 0.0
+            else:
+                # remaining share of a 90' match, floored so a 90'+ score isn't certain
+                frac = min(1.0, max((90 - lm.minute) / 90.0, 0.03))
+            overlay[m.num] = (c1, c2, frac)
+        return overlay
+
+    # --- Live in-play goal feed (ESPN scoreboard, polled every few seconds) ---
+
+    async def poll_live(self, session: Optional[aiohttp.ClientSession] = None) -> None:
+        """
+        Poll ESPN's scoreboard and push a `goal` SSE event for each newly-scored goal.
+        Cheap and independent of the simulation: dedupe by per-match goal count, and on
+        the first sighting of a match record its count WITHOUT emitting (so we never
+        replay goals that happened before the app was watching). Best-effort.
+        """
+        close = session is None
+        if close:
+            session = aiohttp.ClientSession()
+        try:
+            matches = await fetch_scoreboard(session)
+        except Exception as e:
+            log.debug("Live scoreboard poll failed: %s", e)
+            return
+        finally:
+            if close and session is not None:
+                await session.close()
+
+        win_odds = {}
+        if self.result is not None:
+            win_odds = {r["team"]: r["probs"].get("Winner") for r in self.result.knockout_odds}
+
+        for m in matches:
+            cur = len(m.goals)
+            prev = self._live_goal_counts.get(m.event_id)
+            if prev is None:
+                self._live_goal_counts[m.event_id] = cur  # first sighting — no replay
+                continue
+            if cur > prev:
+                for g in m.goals[prev:cur]:
+                    self._notify({
+                        "type": "goal",
+                        "home": m.home, "away": m.away,
+                        "home_score": m.home_score, "away_score": m.away_score,
+                        "team": g.team, "scorer": g.scorer, "minute": g.minute,
+                        "own_goal": g.own_goal, "penalty": g.penalty,
+                        "status": m.status,
+                        "team_win_odds": win_odds.get(g.team),
+                        "timestamp": time.time(),
+                    })
+                log.info("Live goal: %s %d-%d (%s %s)", m.home + " v " + m.away,
+                         m.home_score, m.away_score, m.goals[-1].team, m.goals[-1].minute)
+            self._live_goal_counts[m.event_id] = cur
+
+        # Fold live scores into the simulation. Re-sim whenever the overlay changes —
+        # which includes the clock ticking down (a lead is worth more with less time
+        # left), not just goals — so live win probabilities update continuously.
+        new_overlay = self._build_live_overlay(matches)
+        if new_overlay != self.live_overlay and (new_overlay or self.live_overlay):
+            async with self._lock:
+                self.live_overlay = new_overlay
+                if self.team_params and self.result is not None:
+                    self.result = self._run_sim()
+                    self._notify({"type": "sim_update", "timestamp": self.result.timestamp})
 
     # --- Data refresh ---
 
@@ -156,7 +262,7 @@ class TournamentState:
                 self.players = players
 
                 log.info("Running %d simulations…", N_SIMS)
-                self.result = run_simulation(matches, self.team_params, players, n=N_SIMS)
+                self.result = self._run_sim(matches, with_overrides=False)
                 log.info("Simulations done in %.1fs", self.result.elapsed_seconds)
 
                 # Opt-in bookmaker-odds blend (re-sims with market-nudged ratings).
@@ -226,9 +332,7 @@ class TournamentState:
                     "Refit Dixon-Coles ratings (as_of=%s, %d matches, gamma=%.3f); re-simulating…",
                     model.as_of.date(), model.n_matches, model.gamma,
                 )
-                self.result = run_simulation(
-                    self.matches, self.team_params, self.players, n=N_SIMS
-                )
+                self.result = self._run_sim(with_overrides=False)
                 await self._apply_odds_blend(session)
                 self._notify({"type": "sim_update", "timestamp": self.result.timestamp})
         return True
@@ -281,10 +385,7 @@ class TournamentState:
         log.info(
             "Re-simulating with odds blend (%d h2h match overrides)…", len(overrides)
         )
-        self.result = run_simulation(
-            self.matches, self.team_params, self.players, n=N_SIMS,
-            match_lambda_overrides=overrides or None,
-        )
+        self.result = self._run_sim(with_overrides=True)
 
     def _build_h2h_overrides(
         self, matches: list[WCMatch], team_params: dict[str, TeamParams], h2h_payload: list
