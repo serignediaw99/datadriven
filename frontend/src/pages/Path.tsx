@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { FlagImg } from '../lib/FlagImg'
 import { TeamSelect } from '../components/TeamSelect'
+import { useLiveStream } from '../hooks/useLiveStream'
 import type { PathOpponent, PathResponse, ScenarioMatchOverride, MatchEntry } from '../lib/types'
 
 const ROUND_LABELS = ['R32', 'R16', 'QF', 'SF', 'Final'] as const
@@ -232,9 +233,16 @@ export default function Path() {
   const [running, setRunning] = useState(false)
   const [runError, setRunError] = useState<string | null>(null)
 
+  const qc = useQueryClient()
   const { data: koData } = useQuery({ queryKey: ['knockout'], queryFn: api.knockout })
   const { data: matchesData } = useQuery({ queryKey: ['matches'], queryFn: api.matches })
   const allTeams = (koData?.teams ?? []).map(t => t.team).sort()
+
+  useLiveStream(() => {
+    qc.invalidateQueries({ queryKey: ['knockout'] })
+    qc.invalidateQueries({ queryKey: ['matches'] })
+    qc.invalidateQueries({ queryKey: ['path'] })
+  })
 
   const { data: pathData, isLoading, error } = useQuery({
     queryKey: ['path', selectedTeam],

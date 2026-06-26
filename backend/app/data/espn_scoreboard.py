@@ -8,6 +8,7 @@ failure. Goal events carry no stable id, so callers dedupe by per-match goal cou
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -22,6 +23,12 @@ SCOREBOARD_URL = (
 
 def _canon(name: str) -> str:
     return _ESPN_TEAM_TO_CANONICAL.get(name, name)
+
+
+def _parse_minute(display_clock: str) -> int:
+    """Elapsed minutes from a clock like "62'" or "90'+6'" (caps stoppage at 90+)."""
+    m = re.match(r"\s*(\d+)", display_clock or "")
+    return int(m.group(1)) if m else 0
 
 
 @dataclass
@@ -42,6 +49,7 @@ class LiveMatch:
     away_score: int
     state: str         # "pre" | "in" | "post"
     status: str        # e.g. "1st Half", "Halftime", "Full Time"
+    minute: int = 0    # elapsed match minutes (for the remaining-time fraction)
     goals: list[LiveGoal] = field(default_factory=list)  # chronological
 
 
@@ -79,7 +87,9 @@ def _parse(data: dict) -> list[LiveMatch]:
         if not home or not away:
             continue
         id_to_team = {c["id"]: _canon(c["team"]["displayName"]) for c in competitors}
-        st = event.get("status", {}).get("type", {})
+        status = event.get("status", {})
+        st = status.get("type", {})
+        minute = _parse_minute(status.get("displayClock", ""))
 
         goals: list[LiveGoal] = []
         for det in comp.get("details", []):
@@ -103,6 +113,7 @@ def _parse(data: dict) -> list[LiveMatch]:
             away_score=int(away.get("score") or 0),
             state=st.get("state", ""),
             status=st.get("description", ""),
+            minute=minute,
             goals=goals,
         ))
     return out
