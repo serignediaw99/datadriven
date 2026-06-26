@@ -34,7 +34,9 @@ export interface PredictionResponse {
 export interface MatchEntry {
   id: number; round: string; group: string | null; date: string
   team1: string; team2: string; score1: number | null; score2: number | null
-  status: 'played' | 'upcoming'
+  status: 'played' | 'upcoming' | 'live'
+  live_minute?: number
+  live_status?: string
 }
 export interface MatchesResponse { matches: MatchEntry[] }
 

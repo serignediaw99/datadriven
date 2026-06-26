@@ -20,7 +20,7 @@ async def list_matches():
     await state.ensure_loaded()
     result = []
     for m in state.matches:
-        result.append({
+        entry = {
             "id": m.num,
             "round": m.round,
             "group": m.group,
@@ -30,7 +30,16 @@ async def list_matches():
             "score1": m.score1,
             "score2": m.score2,
             "status": "played" if m.is_played else "upcoming",
-        })
+        }
+        # Overlay the live ESPN score/state (ahead of the slower OpenFootball feed).
+        live = state.live_status.get(m.num)
+        if live is not None and not m.is_played:
+            entry["score1"] = live["score1"]
+            entry["score2"] = live["score2"]
+            entry["status"] = "live" if live["state"] == "in" else "played"
+            entry["live_minute"] = live["minute"]
+            entry["live_status"] = live["status"]
+        result.append(entry)
     return {"matches": result}
 
 
