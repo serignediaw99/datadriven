@@ -7,16 +7,13 @@ miss squad quality: a side with a world-class roster but mediocre recent results
 orthogonal proxy for talent that the betting market also leans on. We fold it in as
 a prior on team strength (see app.models.talent).
 
-Primary source: a maintainable hardcoded snapshot of total squad market values in
-EUR millions. Transfermarkt has no open API and aggressively blocks scrapers, so —
-unlike a fragile live scrape that silently serves stale data — the snapshot IS the
-dependable source. ``fetch_squad_values`` is a best-effort live hook that falls back
-to the snapshot; refresh the snapshot from a real Transfermarkt pull periodically.
+Source: Transfermarkt total squad market values for the 48 World Cup 2026 final
+squads, June 2026 (as compiled by planetfootball.com's full 48-team ranking).
+Transfermarkt has no open API and blocks automated access, so the values are stored
+as a hardcoded snapshot; ``fetch_squad_values`` is a best-effort live hook that
+falls back to it. Refresh the snapshot from a fresh Transfermarkt pull periodically.
 
-Snapshot vintage: ~2025-26 cycle, total squad market value per national team (EUR m).
-Values are approximate; the talent blend only uses their *relative* ordering and
-rough magnitude (a log-value regression calibrated to the model's own spread), so
-small absolute errors wash out.
+Values are total squad market value per national team in EUR millions.
 """
 
 from __future__ import annotations
@@ -28,59 +25,58 @@ import aiohttp
 
 log = logging.getLogger(__name__)
 
-# Total squad market value per national team, EUR millions (approximate snapshot).
+# Total squad market value per national team, EUR millions.
+# Source: Transfermarkt WC-2026 final squads, June 2026 (planetfootball 48-team list).
 # Keys MUST match the OpenFootball / team_params spellings used everywhere else.
 SQUAD_VALUE_EUR_M: dict[str, float] = {
-    # Elite European squads
-    "England": 1450.0,
-    "France": 1130.0,
-    "Spain": 1060.0,
-    "Portugal": 940.0,
-    "Germany": 900.0,
-    "Brazil": 800.0,
-    "Netherlands": 760.0,
-    "Argentina": 650.0,
-    "Italy": 600.0,           # not in the field, kept for completeness/fetch parity
-    "Belgium": 470.0,
-    "Turkey": 380.0,
-    "Croatia": 350.0,
-    "Uruguay": 350.0,
-    "Norway": 340.0,
-    "Morocco": 320.0,
-    "Austria": 300.0,
-    "Colombia": 300.0,
-    "Japan": 290.0,
-    "Senegal": 280.0,
-    "USA": 260.0,
-    "Ecuador": 250.0,
-    "Switzerland": 250.0,
-    "Ivory Coast": 210.0,
-    "Algeria": 200.0,
-    "Sweden": 200.0,
-    "Ghana": 180.0,
-    "Scotland": 180.0,
-    "South Korea": 175.0,
-    "Egypt": 155.0,
-    "Czech Republic": 150.0,
-    "Mexico": 150.0,
-    "Canada": 140.0,
-    "DR Congo": 125.0,
-    "Bosnia & Herzegovina": 120.0,
-    "Paraguay": 90.0,
-    "Cape Verde": 75.0,
-    "Australia": 70.0,
-    "Iran": 70.0,
-    "Tunisia": 60.0,
-    "South Africa": 55.0,
-    "Uzbekistan": 45.0,
-    "Saudi Arabia": 35.0,
-    "Panama": 35.0,
-    "Haiti": 35.0,
-    "New Zealand": 30.0,
-    "Iraq": 30.0,
-    "Qatar": 30.0,
-    "Jordan": 20.0,
-    "Curaçao": 20.0,
+    "France": 1520.0,
+    "England": 1360.0,
+    "Spain": 1220.0,
+    "Portugal": 1010.0,
+    "Germany": 947.0,
+    "Brazil": 928.2,
+    "Argentina": 807.5,
+    "Netherlands": 754.2,
+    "Norway": 589.9,
+    "Belgium": 547.5,
+    "Ivory Coast": 522.1,
+    "Senegal": 478.1,
+    "Turkey": 473.7,
+    "Morocco": 447.7,
+    "Sweden": 406.08,
+    "Croatia": 387.3,
+    "USA": 385.6,
+    "Ecuador": 368.7,
+    "Uruguay": 359.3,
+    "Switzerland": 332.5,
+    "Colombia": 302.35,
+    "Japan": 270.85,
+    "Algeria": 256.9,
+    "Austria": 245.2,
+    "Ghana": 234.5,
+    "Canada": 198.65,
+    "Mexico": 191.85,
+    "Czech Republic": 188.18,
+    "Scotland": 170.25,
+    "Paraguay": 153.65,
+    "Bosnia & Herzegovina": 146.4,
+    "DR Congo": 143.9,
+    "South Korea": 139.05,
+    "Egypt": 116.48,
+    "Uzbekistan": 85.33,
+    "Australia": 77.45,
+    "Tunisia": 69.95,
+    "Haiti": 55.9,
+    "Cape Verde": 49.25,
+    "South Africa": 49.25,
+    "Saudi Arabia": 40.68,
+    "Panama": 34.55,
+    "New Zealand": 34.45,
+    "Iran": 32.05,
+    "Curaçao": 25.78,
+    "Iraq": 21.2,
+    "Jordan": 20.3,
+    "Qatar": 19.93,
 }
 
 
