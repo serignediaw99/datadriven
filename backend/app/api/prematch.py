@@ -8,11 +8,28 @@ import math
 
 from fastapi import APIRouter, HTTPException
 
-from app.models.dixon_coles import scoreline_matrix, derived_stats
-from app.models.ratings import match_lambdas
+from app.data.metadata import host_playing_at_home
+from app.models import ratings
+from app.models.dixon_coles import RHO, scoreline_matrix, derived_stats
 from app.state import state
 
 router = APIRouter()
+
+
+def _prediction_lambdas(match) -> tuple[float, float]:
+    """Goal rates for an upcoming match, matching exactly what the simulation
+    samples for it: the bookmaker h2h override if one is priced, otherwise the
+    host-advantage-adjusted model rates (in data orientation: team1, team2)."""
+    override = state.match_overrides.get(match.num)
+    if override is not None:
+        return override
+    p1 = state.team_params[match.team1]
+    p2 = state.team_params[match.team2]
+    h1 = ratings.HOME_ADV if host_playing_at_home(match.team1, match.ground) else 0.0
+    h2 = ratings.HOME_ADV if host_playing_at_home(match.team2, match.ground) else 0.0
+    lam1 = ratings.BASE_RATE * math.exp(p1.alpha - p2.beta + h1)
+    lam2 = ratings.BASE_RATE * math.exp(p2.alpha - p1.beta + h2)
+    return lam1, lam2
 
 
 @router.get("/matches")
@@ -62,14 +79,12 @@ async def get_prediction(match_id: int):
             "venue": match.ground or None,
         }
 
-    p1 = state.team_params.get(match.team1)
-    p2 = state.team_params.get(match.team2)
-
-    if not p1 or not p2:
+    if match.team1 not in state.team_params or match.team2 not in state.team_params:
         raise HTTPException(422, "Team parameters not available")
 
-    lam1, lam2 = match_lambdas(p1, p2)
-    mat = scoreline_matrix(lam1, lam2)
+    lam1, lam2 = _prediction_lambdas(match)
+    rho = state.fitted_model.rho if state.fitted_model is not None else RHO
+    mat = scoreline_matrix(lam1, lam2, rho=rho)
     stats = derived_stats(mat)
 
     # Full 8×8 scoreline matrix (row = home goals, col = away goals)

@@ -26,12 +26,15 @@ def _tau(g1: int, g2: int, lam1: float, lam2: float, rho: float = RHO) -> float:
     return 1.0
 
 
-def scoreline_matrix(lam1: float, lam2: float, max_goals: int = 8) -> np.ndarray:
+def scoreline_matrix(
+    lam1: float, lam2: float, max_goals: int = 8, rho: float = RHO
+) -> np.ndarray:
     """
     Return a (max_goals+1, max_goals+1) matrix P[g1, g2] = P(score is g1-g2).
 
     Rows = goals by team1, columns = goals by team2.
-    Sum of matrix ≈ 1.0.
+    ``rho`` is the Dixon-Coles low-score correction; pass the fitted model's rho
+    so the displayed scoreline grid matches the strength model. Sum ≈ 1.0.
     """
     mat = np.zeros((max_goals + 1, max_goals + 1))
     for g1 in range(max_goals + 1):
@@ -39,7 +42,7 @@ def scoreline_matrix(lam1: float, lam2: float, max_goals: int = 8) -> np.ndarray
             p = (
                 math.exp(-lam1) * lam1**g1 / math.factorial(g1)
                 * math.exp(-lam2) * lam2**g2 / math.factorial(g2)
-                * _tau(g1, g2, lam1, lam2)
+                * _tau(g1, g2, lam1, lam2, rho)
             )
             mat[g1, g2] = max(p, 0.0)
     # Renormalise after tau adjustments
