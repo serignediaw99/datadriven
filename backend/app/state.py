@@ -28,6 +28,8 @@ from app.data.fbref import fetch_player_stats, PlayerStat
 from app.data.results_history import fetch_results
 from app.data.espn_scoreboard import fetch_scoreboard
 from app.data import odds_api
+from app.data.transfermarkt import get_squad_values
+from app.models.talent import blend_talent
 from app.data.metadata import host_playing_at_home
 from app.models import ratings as ratings_mod
 from app.models.ratings import build_team_params, build_team_params_from_model, TeamParams
@@ -45,6 +47,10 @@ MODEL_PATH = "fitted_ratings.json"
 # Weight on the model when blending toward bookmaker outright odds (Phase 2).
 # 1.0 = pure model, 0.0 = pure market strength. Opt-in via the ODDS_API_KEY env var.
 ODDS_BLEND_W = 0.7
+# Weight on the model when folding in the Transfermarkt squad-talent prior (Phase 3).
+# 1.0 = pure (results-only) model, 0.0 = pure squad-value strength. Applied to the
+# base ratings before any odds blend so it corrects the results-only blind spot.
+TALENT_BLEND_W = float(os.environ.get("TALENT_BLEND_W", "0.8"))
 # Weight on the model for the per-match h2h blend. The bookmaker match market is far
 # better informed than our simple model for a single game, so for now we use it
 # straight (pure market for priced fixtures). Raise above 0 once the model improves.
@@ -299,7 +305,9 @@ class TournamentState:
         """
         Build team_params from the fitted Dixon-Coles model when available,
         falling back to the Elo heuristic. Also refreshes the module-level
-        BASE_RATE / HOME_ADV (done inside build_team_params_from_model).
+        BASE_RATE / HOME_ADV (done inside build_team_params_from_model), then folds
+        in the Transfermarkt squad-talent prior so the results-only ratings account
+        for roster quality.
         """
         if self.fitted_model is not None:
             names = self._finalist_names(matches)
@@ -314,6 +322,11 @@ class TournamentState:
             self.team_params = params
         else:
             self.team_params = build_team_params(self.elo_ratings)
+
+        # Squad-talent prior (Phase 3): nudge strength toward squad market value.
+        self.team_params = blend_talent(
+            self.team_params, get_squad_values(), w=TALENT_BLEND_W
+        )
 
     async def refit_ratings(self, session: Optional[aiohttp.ClientSession] = None) -> bool:
         """
