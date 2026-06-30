@@ -30,6 +30,9 @@ export interface PredictionResponse {
   p_over_25?: number; p_btts?: number
   p_clean_sheet_home?: number; p_clean_sheet_away?: number
   most_likely_score?: string; most_likely_score_prob?: number
+  winner?: string
+  pens1?: number; pens2?: number
+  decided_by?: 'pens' | 'aet'
 }
 export interface MatchEntry {
   id: number; round: string; group: string | null; date: string
@@ -38,6 +41,10 @@ export interface MatchEntry {
   status: 'played' | 'upcoming' | 'live'
   live_minute?: number
   live_status?: string
+  // Knockout decisive result (full-time level): the advancer + how it was decided.
+  winner?: string
+  pens1?: number; pens2?: number
+  decided_by?: 'pens' | 'aet'
 }
 export interface MatchesResponse { matches: MatchEntry[] }
 

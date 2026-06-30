@@ -19,6 +19,17 @@ function MatchCard({ m }: { m: MatchEntry }) {
   const isLive = m.status === 'live'
   const isPlayed = m.status === 'played'
   const showScore = isPlayed || isLive
+  const win1 = isPlayed && m.winner === m.team1
+  const win2 = isPlayed && m.winner === m.team2
+  // Shootout score oriented to the winner ("4–3 on penalties").
+  const winPens = m.winner === m.team1 ? m.pens1 : m.pens2
+  const losePens = m.winner === m.team1 ? m.pens2 : m.pens1
+  const resultNote = !m.winner ? null
+    : m.decided_by === 'pens' && winPens != null && losePens != null
+      ? `${m.winner} win ${winPens}–${losePens} on penalties`
+      : m.decided_by === 'aet'
+        ? `${m.winner} win after extra time`
+        : null
   return (
     <Link to={`/match/${m.id}`} style={{ textDecoration: 'none' }}>
       <div
@@ -54,8 +65,8 @@ function MatchCard({ m }: { m: MatchEntry }) {
             <FlagImg team={m.team1} size={24} />
             <span style={{
               fontSize: 13,
-              fontWeight: isPlayed ? 600 : 500,
-              color: 'var(--text-1)',
+              fontWeight: win1 ? 700 : isPlayed ? 600 : 500,
+              color: win2 ? 'var(--text-3)' : 'var(--text-1)',
             }}>
               {m.team1}
             </span>
@@ -80,8 +91,8 @@ function MatchCard({ m }: { m: MatchEntry }) {
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 7 }}>
             <span style={{
               fontSize: 13,
-              fontWeight: isPlayed ? 600 : 500,
-              color: 'var(--text-1)',
+              fontWeight: win2 ? 700 : isPlayed ? 600 : 500,
+              color: win1 ? 'var(--text-3)' : 'var(--text-1)',
               textAlign: 'right',
             }}>
               {m.team2}
@@ -90,6 +101,11 @@ function MatchCard({ m }: { m: MatchEntry }) {
           </div>
         </div>
 
+        {resultNote && (
+          <div style={{ marginTop: 6, fontSize: 11, color: 'var(--accent)', textAlign: 'center', fontWeight: 600 }}>
+            {resultNote}
+          </div>
+        )}
         {m.venue && (
           <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-3)', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
             <span aria-hidden style={{ opacity: 0.7 }}>📍</span>{m.venue}

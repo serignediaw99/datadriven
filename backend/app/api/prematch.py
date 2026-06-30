@@ -16,6 +16,25 @@ from app.state import state
 router = APIRouter()
 
 
+def _ko_result(m) -> dict:
+    """Decisive-winner context for a played knockout match (empty for group games or
+    matches decided in normal time). Surfaces the shootout/extra-time advancer so the
+    UI can show a winner when the full-time score is level."""
+    if not (m.is_knockout and m.is_played):
+        return {}
+    out: dict = {}
+    winner = m.knockout_winner()
+    if winner:
+        out["winner"] = winner
+    if m.pen1 is not None and m.pen2 is not None:
+        out["pens1"] = m.pen1
+        out["pens2"] = m.pen2
+        out["decided_by"] = "pens"
+    elif m.et1 is not None and m.et2 is not None:
+        out["decided_by"] = "aet"
+    return out
+
+
 def _prediction_lambdas(match) -> tuple[float, float]:
     """Goal rates for an upcoming match, matching exactly what the simulation
     samples for it: the bookmaker h2h override if one is priced, otherwise the
@@ -48,6 +67,7 @@ async def list_matches():
             "score1": m.score1,
             "score2": m.score2,
             "status": "played" if m.is_played else "upcoming",
+            **_ko_result(m),
         }
         # Overlay the live ESPN score/state (ahead of the slower OpenFootball feed).
         live = state.live_status.get(m.num)
@@ -77,6 +97,7 @@ async def get_prediction(match_id: int):
             "team1": match.team1,
             "team2": match.team2,
             "venue": match.ground or None,
+            **_ko_result(match),
         }
 
     if match.team1 not in state.team_params or match.team2 not in state.team_params:
