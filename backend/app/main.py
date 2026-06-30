@@ -15,7 +15,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import standings, qualification, knockout, players, prematch, live, bracket, scenario
+from app.api import standings, qualification, knockout, players, prematch, live, bracket, scenario, insights
 from app.state import state
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -70,6 +70,7 @@ app.include_router(prematch.router,      prefix="/api")
 app.include_router(live.router,          prefix="/api")
 app.include_router(bracket.router,       prefix="/api")
 app.include_router(scenario.router,      prefix="/api")
+app.include_router(insights.router,      prefix="/api")
 
 
 @app.get("/api/health")

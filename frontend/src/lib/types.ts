@@ -66,6 +66,39 @@ export interface PathOpponent { opponent: string; p: number }
 export interface PathRound { [round: string]: PathOpponent[] }
 export interface PathResponse { team: string; path: PathRound }
 
+// ─── Insights: Most Likely Final ──────────────────────────────────────────────
+export interface FinalPair { team_a: string; team_b: string; p: number }
+export interface FinalistCell { team: string; p_final: number }
+export interface FinalMatchupsResponse {
+  most_likely: FinalPair[]
+  heatmap: { rows: FinalistCell[]; cols: FinalistCell[]; matrix: number[][] }
+  n_simulations: number; timestamp: number
+}
+
+// ─── Insights: Road to the Final ──────────────────────────────────────────────
+export interface RoadRound {
+  round: string; p_reach: number
+  opp_power: number | null; likely_opp: string | null; likely_opp_p: number | null
+}
+export interface RoadTeam {
+  team: string; difficulty: number; p_reach_final: number
+  exp_games_remaining: number; rounds: RoadRound[]
+}
+export interface RoadResponse { teams: RoadTeam[]; n_simulations: number; timestamp: number }
+
+// ─── Insights: Title Odds Movers ──────────────────────────────────────────────
+export interface MoverRow { team: string; from: number; to: number; delta: number; mult: number | null }
+export interface SnapshotInfo { label: string; n_ko_played: number; timestamp: number }
+export interface MoversResponse {
+  current: (SnapshotInfo & { champ: Record<string, number> }) | null
+  baseline: SnapshotInfo | null
+  previous: SnapshotInfo | null
+  vs_baseline: MoverRow[]
+  vs_previous: MoverRow[]
+  history: SnapshotInfo[]
+  n_simulations: number; timestamp: number
+}
+
 export interface ScenarioMatchOverride { match_num: number; score1: number; score2: number }
 export interface ScenarioRequest { overrides: ScenarioMatchOverride[]; n_sims?: number; focus_team?: string }
 export interface ScenarioResponse {

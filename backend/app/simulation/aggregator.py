@@ -194,3 +194,143 @@ def path_odds(
         path[label] = opp_list
 
     return {"team": team_name, "path": path}
+
+
+def final_matchups(
+    reach: np.ndarray,       # (N, 48, 6) bool
+    team_names: list[str],
+    top_n: int = 12,
+) -> dict:
+    """
+    Probability of each possible Final matchup, derived directly from the reach
+    array: exactly two teams reach round 4 (the Final) in every sim, so the joint
+    P(A and B both reach the Final) IS P(the Final is A vs B).
+
+    Returns the most likely finals plus a heatmap. The bracket guarantees the two
+    finalists come from opposite halves, so the finalist set is 2-colourable into
+    the two halves (BFS over the co-finalist graph) -- one half becomes the heatmap
+    rows, the other the columns, so no cell is a structurally-impossible same-half
+    pairing.
+    """
+    N = reach.shape[0]
+    fin = reach[:, :, 4]                       # (N, 48) finalist flags
+    p_final = fin.mean(axis=0)                 # (48,)
+    finalists = [t for t in range(len(team_names)) if p_final[t] > 0]
+
+    # Pairwise finalist probabilities (cross-half pairs only have non-zero counts).
+    pair_p: dict[tuple[int, int], float] = {}
+    adj: dict[int, set[int]] = {t: set() for t in finalists}
+    pairs: list[tuple[int, int, float]] = []
+    for ii in range(len(finalists)):
+        a = finalists[ii]
+        fa = fin[:, a]
+        for jj in range(ii + 1, len(finalists)):
+            b = finalists[jj]
+            cnt = int(np.count_nonzero(fa & fin[:, b]))
+            if cnt > 0:
+                p = cnt / N
+                pair_p[(a, b)] = p
+                adj[a].add(b)
+                adj[b].add(a)
+                pairs.append((a, b, p))
+
+    pairs.sort(key=lambda x: -x[2])
+    most_likely = [
+        {"team_a": team_names[a], "team_b": team_names[b], "p": round(p, 4)}
+        for a, b, p in pairs[:top_n]
+    ]
+
+    # 2-colour the co-finalist graph into the two bracket halves.
+    color: dict[int, int] = {}
+    for start in finalists:
+        if start in color:
+            continue
+        color[start] = 0
+        stack = [start]
+        while stack:
+            u = stack.pop()
+            for v in adj[u]:
+                if v not in color:
+                    color[v] = color[u] ^ 1
+                    stack.append(v)
+
+    rows = sorted([t for t in finalists if color.get(t, 0) == 0], key=lambda t: -p_final[t])
+    cols = sorted([t for t in finalists if color.get(t, 0) == 1], key=lambda t: -p_final[t])
+
+    def _pair(a: int, b: int) -> float:
+        return pair_p.get((a, b)) or pair_p.get((b, a)) or 0.0
+
+    matrix = [[round(_pair(r, c), 4) for c in cols] for r in rows]
+
+    return {
+        "most_likely": most_likely,
+        "heatmap": {
+            "rows": [{"team": team_names[t], "p_final": round(float(p_final[t]), 4)} for t in rows],
+            "cols": [{"team": team_names[t], "p_final": round(float(p_final[t]), 4)} for t in cols],
+            "matrix": matrix,
+        },
+    }
+
+
+def road_to_final(
+    reach: np.ndarray,       # (N, 48, 6) bool
+    ko_opp: np.ndarray,      # (N, 48, 6) int8, -1 = did not play
+    team_names: list[str],
+    power: np.ndarray,       # (48,) opponent power rating, ~0-100 scale
+) -> dict:
+    """
+    'Strength of path' for every team still alive: the probability-weighted average
+    power rating of the opponents it is projected to face from the Round of 16 through
+    the Final (rounds 1-4). Lower = easier road. Per-round detail gives each round's
+    reach probability, most-likely opponent, and average opponent power.
+
+    A team is 'alive' if it can still reach the Round of 16 (P(R16) > 0), which
+    excludes teams already knocked out in the Round of 32.
+    """
+    round_idx = [1, 2, 3, 4]
+    round_labels = ["R16", "QF", "SF", "Final"]
+    out: list[dict] = []
+
+    for t in range(len(team_names)):
+        if reach[:, t, 1].mean() <= 0:
+            continue  # eliminated in R32 (or not a knockout team)
+
+        rounds: list[dict] = []
+        num = 0.0
+        den = 0.0
+        for ri, label in zip(round_idx, round_labels):
+            mask = reach[:, t, ri]
+            p_reach = float(mask.mean())
+            if p_reach <= 0:
+                rounds.append({"round": label, "p_reach": 0.0,
+                               "opp_power": None, "likely_opp": None, "likely_opp_p": None})
+                continue
+            opps = ko_opp[mask, t, ri].astype(np.int32)
+            opps = opps[opps >= 0]
+            if opps.size == 0:
+                rounds.append({"round": label, "p_reach": round(p_reach, 4),
+                               "opp_power": None, "likely_opp": None, "likely_opp_p": None})
+                continue
+            opp_power = float(power[opps].mean())
+            uo, cnt = np.unique(opps, return_counts=True)
+            k = int(np.argmax(cnt))
+            num += p_reach * opp_power
+            den += p_reach
+            rounds.append({
+                "round": label,
+                "p_reach": round(p_reach, 4),
+                "opp_power": round(opp_power, 1),
+                "likely_opp": team_names[int(uo[k])],
+                "likely_opp_p": round(int(cnt[k]) / opps.size, 4),
+            })
+
+        out.append({
+            "team": team_names[t],
+            "difficulty": round(num / den, 1) if den > 0 else 0.0,
+            "p_reach_final": round(float(reach[:, t, 4].mean()), 4),
+            "exp_games_remaining": round(den, 2),
+            "rounds": rounds,
+        })
+
+    out.sort(key=lambda r: r["difficulty"])  # easiest road first
+    return {"teams": out}

@@ -12,6 +12,7 @@ Holds:
 from __future__ import annotations
 
 import asyncio
+import json
 import unicodedata
 import logging
 import os
@@ -44,6 +45,11 @@ log = logging.getLogger(__name__)
 # instances (e.g. N_SIMS=12000 on Render's 512MB tier). Default 50k for local/large.
 N_SIMS = int(os.environ.get("N_SIMS", "50000"))
 MODEL_PATH = "fitted_ratings.json"
+# Rolling championship-odds snapshots (one per completed KO match) powering the
+# Title Odds Movers page. Persisted so the pre-/early-knockout baseline survives
+# restarts; capped to the most recent CHAMP -- entries below.
+ODDS_HISTORY_PATH = "odds_history.json"
+ODDS_HISTORY_MAX = 60
 # Weight on the model when blending toward bookmaker outright odds (Phase 2).
 # 1.0 = pure model, 0.0 = pure market strength. Opt-in via the ODDS_API_KEY env var.
 ODDS_BLEND_W = 0.7
@@ -79,6 +85,9 @@ class TournamentState:
         # state, status, minute}} (data orientation). Sourced from ESPN ahead of the
         # slower OpenFootball feed.
         self.live_status: dict[int, dict] = {}
+        # Championship-odds history for the Title Odds Movers page: one snapshot per
+        # completed-knockout-match milestone {n_ko_played, label, timestamp, champ{}}.
+        self.odds_history: list[dict] = []
         self._subscribers: list[asyncio.Queue] = []
         self._lock = asyncio.Lock()
 
@@ -121,10 +130,14 @@ class TournamentState:
                   (a final "post" match gets fraction 0.0 so its score is locked), and
           status  {match.num: {score1, score2, state, status, minute}} for the UI.
         Both in data orientation; only matches OpenFootball hasn't marked played yet.
+
+        Knockout fixtures are matched too: once the group stage is over their slots
+        hold real team names, so an in-progress R32+ game shows a live score. Slot
+        codes still pending (e.g. "W74") simply never match an ESPN pair.
         """
         by_pair = {
             frozenset((m.team1, m.team2)): m
-            for m in self.matches if m.group and not m.is_played
+            for m in self.matches if not m.is_played
         }
         overlay: dict[int, tuple[int, int, float]] = {}
         status: dict[int, dict] = {}
@@ -144,11 +157,15 @@ class TournamentState:
             else:
                 # remaining share of a 90' match, floored so a 90'+ score isn't certain
                 frac = min(1.0, max((90 - lm.minute) / 90.0, 0.03))
-            overlay[m.num] = (c1, c2, frac)
             status[m.num] = {
                 "score1": c1, "score2": c2, "state": lm.state,
                 "status": lm.status, "minute": lm.minute,
             }
+            # The sim only folds a partial score into group fixtures; the knockout
+            # bracket advances on completed-match winners, not in-play scores, so a
+            # live KO game updates the displayed score but not the simulation yet.
+            if m.group:
+                overlay[m.num] = (c1, c2, frac)
         return overlay, status
 
     # --- Live in-play goal feed (ESPN scoreboard, polled every few seconds) ---
@@ -284,6 +301,9 @@ class TournamentState:
 
                 # Opt-in bookmaker-odds blend (re-sims with market-nudged ratings).
                 await self._apply_odds_blend(session)
+
+                # Snapshot championship odds when a new KO result has landed (Movers).
+                self._record_odds_snapshot()
 
                 self._notify({"type": "sim_update", "timestamp": self.result.timestamp})
                 return True
@@ -442,10 +462,116 @@ class TournamentState:
             overrides[m.num] = (lam1, lam2)
         return overrides
 
+    # --- Title-odds history (Movers page) ---
+
+    @staticmethod
+    def _ko_stage_label(n_ko_played: int) -> str:
+        """Human label for the current knockout progress (cumulative match counts:
+        R32=16, R16=8, QF=4, SF=2, 3rd=1, Final=1)."""
+        if n_ko_played <= 0:
+            return "Pre-knockout"
+        if n_ko_played < 16:
+            return f"Round of 32 ({n_ko_played}/16)"
+        if n_ko_played < 24:
+            return "Round of 16" if n_ko_played == 16 else f"Round of 16 ({n_ko_played - 16}/8)"
+        if n_ko_played < 28:
+            return "Quarter-finals" if n_ko_played == 24 else f"Quarter-finals ({n_ko_played - 24}/4)"
+        if n_ko_played < 30:
+            return "Semi-finals" if n_ko_played == 28 else f"Semi-finals ({n_ko_played - 28}/2)"
+        if n_ko_played < 31:
+            return "Semi-finals complete"
+        return "Final"
+
+    def _record_odds_snapshot(self) -> None:
+        """Append a championship-odds snapshot when a new KO match has completed.
+        Must be called with self.result populated. Best-effort persistence."""
+        if self.result is None:
+            return
+        n_ko_played = sum(1 for m in self.matches if m.is_knockout and m.is_played)
+        if self.odds_history and n_ko_played <= self.odds_history[-1]["n_ko_played"]:
+            return  # no new knockout result since the last snapshot
+        champ = {
+            r["team"]: r["probs"].get("Winner", 0.0)
+            for r in self.result.knockout_odds
+            if r["probs"].get("Winner", 0.0) > 0
+        }
+        self.odds_history.append({
+            "n_ko_played": n_ko_played,
+            "label": self._ko_stage_label(n_ko_played),
+            "timestamp": time.time(),
+            "champ": champ,
+        })
+        del self.odds_history[:-ODDS_HISTORY_MAX]
+        try:
+            with open(ODDS_HISTORY_PATH, "w") as f:
+                json.dump(self.odds_history, f)
+        except Exception:
+            pass
+
+    def _load_odds_history(self) -> None:
+        try:
+            with open(ODDS_HISTORY_PATH) as f:
+                hist = json.load(f)
+            if isinstance(hist, list):
+                self.odds_history = hist
+        except Exception:
+            pass
+
+    def title_movers(self) -> dict:
+        """Championship-odds movers: current vs the start of the knockouts (baseline)
+        and vs the previous completed match (previous). Empty until a snapshot exists."""
+        hist = self.odds_history
+        meta = {
+            "n_simulations": self.result.n_simulations if self.result else 0,
+            "timestamp": self.result.timestamp if self.result else 0,
+        }
+        if not hist:
+            return {**meta, "current": None, "baseline": None, "previous": None,
+                    "vs_baseline": [], "vs_previous": [], "history": []}
+
+        current = hist[-1]
+        baseline = hist[0]
+        previous = hist[-2] if len(hist) >= 2 else hist[0]
+
+        def _movers(prev_snap: dict) -> list[dict]:
+            now = current["champ"]
+            then = prev_snap["champ"]
+            teams = set(now) | set(then)
+            rows = []
+            for t in teams:
+                a = then.get(t, 0.0)
+                b = now.get(t, 0.0)
+                if a < 0.001 and b < 0.001:
+                    continue
+                rows.append({
+                    "team": t,
+                    "from": round(a, 4),
+                    "to": round(b, 4),
+                    "delta": round(b - a, 4),
+                    "mult": round(b / a, 2) if a >= 0.001 else None,
+                })
+            rows.sort(key=lambda r: -r["delta"])
+            return rows
+
+        def _info(s: dict) -> dict:
+            return {"label": s["label"], "n_ko_played": s["n_ko_played"], "timestamp": s["timestamp"]}
+
+        return {
+            **meta,
+            "current": {**_info(current), "champ": current["champ"]},
+            "baseline": _info(baseline),
+            "previous": _info(previous),
+            "vs_baseline": _movers(baseline),
+            "vs_previous": _movers(previous) if len(hist) >= 2 else [],
+            "history": [_info(s) for s in hist],
+        }
+
     async def ensure_loaded(self) -> None:
         """Run initial refresh if not yet loaded."""
         if self.fitted_model is None:
             self.fitted_model = load_model(MODEL_PATH)
+        if not self.odds_history:
+            self._load_odds_history()
         if self.result is None:
             await self.refresh()
 
