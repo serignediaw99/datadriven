@@ -81,7 +81,7 @@ export default function Road() {
             <span className="gradient-text">Road to the Final</span>
           </h1>
           <p style={{ fontSize: 12, color: 'var(--text-3)' }}>
-            {data ? `${data.n_simulations.toLocaleString()} simulations · projected opponent strength from the Round of 16 onward` : 'Loading…'}
+            {data ? `${data.n_simulations.toLocaleString()} simulations · projected opponent strength from the Round of 32 onward` : 'Loading…'}
           </p>
         </div>
         <button onClick={() => setHardestFirst(h => !h)} style={{
@@ -116,7 +116,7 @@ export default function Road() {
         </div>
       )}
       <p style={{ fontSize: 11, color: 'var(--text-3)' }}>
-        Difficulty = probability-weighted average opponent power rating (0–100) across the Round of 16 through the Final. Lower is an easier road.
+        Difficulty = probability-weighted average opponent power rating (0–100) across the Round of 32 through the Final. Lower is an easier road.
       </p>
     </div>
   )
