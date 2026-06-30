@@ -227,11 +227,12 @@ def run(
     }
     for m in matches:
         if m.is_knockout and m.is_played and m.num in KO_MATCH_TO_BRACKET:
-            s1, s2 = m.score1 or 0, m.score2 or 0
-            if s1 == s2:
-                continue  # penalty shootout -- ft score is tied
+            # Real advancer, resolving draws by penalties then extra time (a tied
+            # ft score does NOT mean the match is undecided -- it went to ET/pens).
+            winner_name = m.knockout_winner()
+            if winner_name is None:
+                continue
             round_name, bracket_pos = KO_MATCH_TO_BRACKET[m.num]
-            winner_name = m.team1 if s1 > s2 else m.team2
             winner_idx = team_to_idx.get(winner_name, -1)
             if winner_idx >= 0 and round_name in fixed_ko:
                 fixed_ko[round_name][bracket_pos] = winner_idx
