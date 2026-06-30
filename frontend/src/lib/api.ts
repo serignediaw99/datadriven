@@ -2,6 +2,7 @@ import type {
   GroupsResponse, ThirdPlaceResponse, KnockoutResponse,
   AwardsResponse, PredictionResponse, MatchesResponse, BracketResponse,
   PlayerAwardEntry, PathResponse, ScenarioRequest, ScenarioResponse,
+  FinalMatchupsResponse, RoadResponse, MoversResponse,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? ""
@@ -33,6 +34,9 @@ export const api = {
   matches:    () => get<MatchesResponse>('/api/matches'),
   prediction: (id: number) => get<PredictionResponse>(`/api/matches/${id}/prediction`),
   bracket:    () => get<BracketResponse>('/api/bracket'),
+  finalMatchups: () => get<FinalMatchupsResponse>('/api/insights/final'),
+  roadToFinal:   () => get<RoadResponse>('/api/insights/road'),
+  titleMovers:   () => get<MoversResponse>('/api/insights/movers'),
   path: (team: string) => get<PathResponse>(`/api/knockout/path/${encodeURIComponent(team)}`),
   scenario: (body: ScenarioRequest): Promise<ScenarioResponse> =>
     fetch(`${BASE}/api/scenario`, {

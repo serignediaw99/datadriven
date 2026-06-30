@@ -12,6 +12,9 @@ import Bracket from './pages/Bracket'
 import About from './pages/About'
 import Path from './pages/Path'
 import Scenario from './pages/Scenario'
+import FinalMatchups from './pages/FinalMatchups'
+import Road from './pages/Road'
+import Movers from './pages/Movers'
 
 export default function App() {
   return (
@@ -25,6 +28,9 @@ export default function App() {
           <Route path="/awards"     element={<Awards />} />
           <Route path="/matches"    element={<Matches />} />
           <Route path="/bracket"    element={<Bracket />} />
+          <Route path="/final"      element={<FinalMatchups />} />
+          <Route path="/road"       element={<Road />} />
+          <Route path="/movers"     element={<Movers />} />
           <Route path="/match/:id"  element={<Match />} />
           <Route path="/about"      element={<About />} />
           <Route path="/path"       element={<Path />} />
