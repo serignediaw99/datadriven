@@ -280,15 +280,16 @@ def road_to_final(
 ) -> dict:
     """
     'Strength of path' for every team still alive: the probability-weighted average
-    power rating of the opponents it is projected to face from the Round of 16 through
-    the Final (rounds 1-4). Lower = easier road. Per-round detail gives each round's
+    power rating of the opponents it is projected to face from the Round of 32 through
+    the Final (rounds 0-4). Lower = easier road. Per-round detail gives each round's
     reach probability, most-likely opponent, and average opponent power.
 
     A team is 'alive' if it can still reach the Round of 16 (P(R16) > 0), which
-    excludes teams already knocked out in the Round of 32.
+    excludes teams already knocked out in the Round of 32. The R32 leg is included
+    because for most teams it is still their next (or an in-progress) match.
     """
-    round_idx = [1, 2, 3, 4]
-    round_labels = ["R16", "QF", "SF", "Final"]
+    round_idx = [0, 1, 2, 3, 4]
+    round_labels = ["R32", "R16", "QF", "SF", "Final"]
     out: list[dict] = []
 
     for t in range(len(team_names)):

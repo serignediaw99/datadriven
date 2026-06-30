@@ -219,6 +219,7 @@ class TournamentState:
         # which includes the clock ticking down (a lead is worth more with less time
         # left), not just goals — so live win probabilities update continuously.
         new_overlay, new_status = self._build_live_state(matches)
+        status_changed = new_status != self.live_status
         self.live_status = new_status  # always current for the matches/path UI
         if new_overlay != self.live_overlay and (new_overlay or self.live_overlay):
             async with self._lock:
@@ -226,6 +227,12 @@ class TournamentState:
                 if self.team_params and self.result is not None:
                     self.result = self._run_sim()
                     self._notify({"type": "sim_update", "timestamp": self.result.timestamp})
+        elif status_changed:
+            # A live knockout score/clock changed. KO games aren't folded into the sim
+            # overlay (the bracket advances on completed-match winners), so the result
+            # is unchanged — but still nudge the matches/path UI to refetch the live
+            # score, which it otherwise wouldn't see until the next goal or reload.
+            self._notify({"type": "sim_update", "timestamp": time.time()})
 
     # --- Data refresh ---
 
