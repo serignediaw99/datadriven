@@ -97,7 +97,23 @@ def _resolve(desc: str, g1: dict, g2: dict, tp3: dict[int, str]) -> str:
     return "TBD"
 
 
-def _match(ta: str, tb: str, params: dict) -> dict:
+def _match(ta: str, tb: str, params: dict, actual=None) -> dict:
+    # A played knockout match overrides the model: show the real teams and the
+    # team that actually advanced (resolving draws by penalties/extra time). The
+    # ft score can be tied yet the match decided -- never fall back to the model
+    # prediction when there's a real result, or the bracket contradicts the result.
+    if actual is not None:
+        w = actual.knockout_winner()
+        if w is not None:
+            return {
+                "team_a": actual.team1, "team_b": actual.team2,
+                "winner":   w,
+                "p_win":    1.0,
+                "p_a_wins": 1.0 if w == actual.team1 else 0.0,
+                "played":   True,
+            }
+        ta, tb = actual.team1, actual.team2  # decided field missing -- model the teams
+
     pa, pb = params.get(ta), params.get(tb)
     pw = _win_prob(pa.alpha, pa.beta, pb.alpha, pb.beta) if pa and pb else 0.5
     return {
@@ -105,6 +121,7 @@ def _match(ta: str, tb: str, params: dict) -> dict:
         "winner":    ta if pw >= 0.5 else tb,
         "p_win":     round(max(pw, 1 - pw), 3),
         "p_a_wins":  round(pw, 3),
+        "played":    False,
     }
 
 
@@ -124,6 +141,9 @@ async def get_bracket():
     # Venue per knockout match number (R32 73-88, R16 89-96, QF 97-100, SF 101-102,
     # Final 104) from the fixture data.
     venues = {m.num: (m.ground or None) for m in state.matches}
+    # Already-played knockout matches by match number -- these override the model so
+    # the bracket follows the actual results (e.g. a team eliminated on penalties).
+    played = {m.num: m for m in state.matches if m.is_knockout and m.is_played}
 
     # R32
     r32: list[dict] = []
@@ -131,7 +151,7 @@ async def get_bracket():
     for mi, (da, db) in enumerate(R32_STRUCTURE):
         ta = _resolve(da, g1, g2, tp3)
         tb = _resolve(db, g1, g2, tp3)
-        res = _match(ta, tb, params)
+        res = _match(ta, tb, params, played.get(73 + mi))
         r32.append({"id": mi, "match_num": 73 + mi, "venue": venues.get(73 + mi), **res})
         r32_w.append(res["winner"])
 
@@ -139,7 +159,7 @@ async def get_bracket():
     r16: list[dict] = []
     r16_w: list[str] = []
     for ri, (ia, ib) in enumerate(R16_BRACKET):
-        res = _match(r32_w[ia], r32_w[ib], params)
+        res = _match(r32_w[ia], r32_w[ib], params, played.get(89 + ri))
         r16.append({"id": ri, "match_num": 89 + ri, "venue": venues.get(89 + ri),
                     "r32_a": ia, "r32_b": ib, **res})
         r16_w.append(res["winner"])
@@ -148,7 +168,7 @@ async def get_bracket():
     qf: list[dict] = []
     qf_w: list[str] = []
     for qi, (ia, ib) in enumerate(QF_BRACKET):
-        res = _match(r16_w[ia], r16_w[ib], params)
+        res = _match(r16_w[ia], r16_w[ib], params, played.get(97 + qi))
         qf.append({"id": qi, "match_num": 97 + qi, "venue": venues.get(97 + qi),
                    "r16_a": ia, "r16_b": ib, **res})
         qf_w.append(res["winner"])
@@ -157,12 +177,13 @@ async def get_bracket():
     sf: list[dict] = []
     sf_w: list[str] = []
     for si, (ia, ib) in enumerate(SF_BRACKET):
-        res = _match(qf_w[ia], qf_w[ib], params)
+        res = _match(qf_w[ia], qf_w[ib], params, played.get(101 + si))
         sf.append({"id": si, "match_num": 101 + si, "venue": venues.get(101 + si),
                    "qf_a": ia, "qf_b": ib, **res})
         sf_w.append(res["winner"])
 
     return {
         "r32": r32, "r16": r16, "qf": qf, "sf": sf,
-        "final": {"match_num": 104, "venue": venues.get(104), **_match(sf_w[0], sf_w[1], params)},
+        "final": {"match_num": 104, "venue": venues.get(104),
+                  **_match(sf_w[0], sf_w[1], params, played.get(104))},
     }
