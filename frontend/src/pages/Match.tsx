@@ -84,6 +84,16 @@ export default function Match() {
   if (!pred) return <p style={{ color: 'var(--text-2)' }}>Match not found.</p>
 
   if (pred.status === 'played') {
+    const win1 = pred.winner === pred.team1
+    const win2 = pred.winner === pred.team2
+    const winPens = win1 ? pred.pens1 : pred.pens2
+    const losePens = win1 ? pred.pens2 : pred.pens1
+    const note = !pred.winner ? null
+      : pred.decided_by === 'pens' && winPens != null && losePens != null
+        ? `${pred.winner} win ${winPens}–${losePens} on penalties`
+        : pred.decided_by === 'aet'
+          ? `${pred.winner} win after extra time`
+          : null
     return (
       <div style={{ maxWidth: 560, margin: '0 auto', paddingTop: 32 }}>
         <Link to="/matches" style={{ fontSize: 13, color: 'var(--text-2)', textDecoration: 'none', display: 'block', marginBottom: 24 }}>
@@ -96,7 +106,7 @@ export default function Match() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28 }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ marginBottom: 8 }}><FlagImg team={pred.team1} size={44} /></div>
-              <div style={{ fontSize: 13, fontWeight: 500, marginTop: 8, color: 'var(--text-1)' }}>{pred.team1}</div>
+              <div style={{ fontSize: 13, fontWeight: win1 ? 700 : 500, marginTop: 8, color: win2 ? 'var(--text-3)' : 'var(--text-1)' }}>{pred.team1}</div>
             </div>
             <div style={{
               fontFamily: "'Space Grotesk', sans-serif",
@@ -108,9 +118,12 @@ export default function Match() {
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ marginBottom: 8 }}><FlagImg team={pred.team2} size={44} /></div>
-              <div style={{ fontSize: 13, fontWeight: 500, marginTop: 8, color: 'var(--text-1)' }}>{pred.team2}</div>
+              <div style={{ fontSize: 13, fontWeight: win2 ? 700 : 500, marginTop: 8, color: win1 ? 'var(--text-3)' : 'var(--text-1)' }}>{pred.team2}</div>
             </div>
           </div>
+          {note && (
+            <div style={{ marginTop: 20, fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>{note}</div>
+          )}
         </div>
       </div>
     )
