@@ -121,10 +121,14 @@ class TournamentState:
                   (a final "post" match gets fraction 0.0 so its score is locked), and
           status  {match.num: {score1, score2, state, status, minute}} for the UI.
         Both in data orientation; only matches OpenFootball hasn't marked played yet.
+
+        Knockout fixtures are matched too: once the group stage is over their slots
+        hold real team names, so an in-progress R32+ game shows a live score. Slot
+        codes still pending (e.g. "W74") simply never match an ESPN pair.
         """
         by_pair = {
             frozenset((m.team1, m.team2)): m
-            for m in self.matches if m.group and not m.is_played
+            for m in self.matches if not m.is_played
         }
         overlay: dict[int, tuple[int, int, float]] = {}
         status: dict[int, dict] = {}
@@ -144,11 +148,15 @@ class TournamentState:
             else:
                 # remaining share of a 90' match, floored so a 90'+ score isn't certain
                 frac = min(1.0, max((90 - lm.minute) / 90.0, 0.03))
-            overlay[m.num] = (c1, c2, frac)
             status[m.num] = {
                 "score1": c1, "score2": c2, "state": lm.state,
                 "status": lm.status, "minute": lm.minute,
             }
+            # The sim only folds a partial score into group fixtures; the knockout
+            # bracket advances on completed-match winners, not in-play scores, so a
+            # live KO game updates the displayed score but not the simulation yet.
+            if m.group:
+                overlay[m.num] = (c1, c2, frac)
         return overlay, status
 
     # --- Live in-play goal feed (ESPN scoreboard, polled every few seconds) ---
